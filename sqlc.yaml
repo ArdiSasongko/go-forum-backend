@@ -1,0 +1,23 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "./db/queries/user/*.sql"
+    schema: "./db/migrations"
+    gen:
+      go:
+        package: "user"
+        out: "./internal/db/user"
+  - engine: "postgresql"
+    queries: "./db/queries/usersession/*.sql"
+    schema: "./db/migrations"
+    gen:
+      go:
+        package: "usersession"
+        out: "./internal/db/usersession"
+  # - engine: "postgresql"
+  #   queries: "./db/queries/comment/*.sql"
+  #   schema: "./db/migrations/comment"
+  #   gen:
+  #     go:
+  #       package: "comment"
+  #       out: "./internal/db/comment"
