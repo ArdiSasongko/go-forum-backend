@@ -58,3 +58,24 @@ type ValidatePayload struct {
 	Token    int32  `json:"token"`
 	Username string `json:"username"`
 }
+
+type SendEmail struct {
+	Email string `json:"email" validate:"required,email"`
+}
+
+func (u SendEmail) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}
+
+type ResetPassword struct {
+	Token           int32  `json:"token" validate:"required,number,min=6"`
+	Email           string `json:"email" validate:"required,email"`
+	Password        string `json:"password" validate:"required,min=8,max=255"`
+	ConfirmPassword string `json:"confirm_password" validate:"required,min=8,max=255,eqfield=Password"`
+}
+
+func (u ResetPassword) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}

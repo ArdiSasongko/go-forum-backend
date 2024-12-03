@@ -6,8 +6,8 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/env"
-	"github.com/ArdiSasongko/go-forum-backend/internal/db/usersession"
 	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 	"github.com/gofiber/fiber/v2"

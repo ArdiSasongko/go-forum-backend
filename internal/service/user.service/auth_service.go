@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/db/token"
-	"github.com/ArdiSasongko/go-forum-backend/internal/db/user"
-	"github.com/ArdiSasongko/go-forum-backend/internal/db/usersession"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
 	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
 	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
+	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/token"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/user"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -43,6 +43,8 @@ type UserService interface {
 	RefreshToken(ctx context.Context, req model.PayloadToken, token model.RefreshToken) (string, error)
 	ValidateEmail(ctx context.Context, payload model.ValidatePayload) error
 	ResendEmail(ctx context.Context, payload model.ValidatePayload) error
+	ResetPassword(ctx context.Context, req model.SendEmail) error
+	ConfirmPassword(ctx context.Context, req model.ResetPassword) error
 }
 
 func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error {
