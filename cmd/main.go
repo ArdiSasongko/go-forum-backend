@@ -5,8 +5,9 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/api/router"
 	"github.com/ArdiSasongko/go-forum-backend/env"
-	"github.com/ArdiSasongko/go-forum-backend/internal/repository"
-	"github.com/ArdiSasongko/go-forum-backend/internal/service"
+	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
+	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
+	userservice "github.com/ArdiSasongko/go-forum-backend/internal/service/user.service"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -23,9 +24,10 @@ func Setup() *fiber.App {
 		logrus.WithField("database", err.Error()).Fatal(err.Error())
 	}
 
-	userRepo := repository.NewuserRepository(db)
-	userSessionRepo := repository.NewUserSessionRepository(db)
-	userService := service.NewUserService(userRepo, userSessionRepo, db)
+	userRepo := userrepository.NewuserRepository(db)
+	userSessionRepo := userrepository.NewUserSessionRepository(db)
+	tokenRepo := tokenrepository.NewTokenRepository(db)
+	userService := userservice.NewUserService(userRepo, userSessionRepo, tokenRepo, db)
 	apiRouter := router.NewApiRouter(userService)
 
 	app := fiber.New()

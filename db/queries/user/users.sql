@@ -1,9 +1,9 @@
 -- name: GetUser :one
 SELECT * FROM users WHERE id = $1 OR username = $2 OR email = $3;
 
--- name: CreateUser :exec
+-- name: CreateUser :one
 INSERT INTO users (name, username, email, password, role, is_valid)
-VALUES ($1, $2, $3, $4, $5, $6);
+VALUES ($1, $2, $3, $4, $5, $6) RETURNING id;
 
 -- name: UpdateUser :exec
 UPDATE users set name = $1, username = $2 where id = $3;

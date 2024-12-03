@@ -1,12 +1,13 @@
 package middleware
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/env"
 	"github.com/ArdiSasongko/go-forum-backend/internal/db/usersession"
-	"github.com/ArdiSasongko/go-forum-backend/internal/repository"
+	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 	"github.com/gofiber/fiber/v2"
@@ -26,7 +27,7 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 		logrus.WithField("database", err.Error()).Fatal(err.Error())
 	}
 
-	token, err := repository.NewUserSessionRepository(db).GetTokenByToken(ctx.Context(), auth)
+	token, err := userrepository.NewUserSessionRepository(db).GetTokenByToken(ctx.Context(), auth)
 	if token == (usersession.UserSession{}) {
 		logrus.WithField("get token", "token empty in database").Error("token empty in database")
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token empty in database", nil)
@@ -46,9 +47,11 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token has expired", nil)
 	}
 
-	ctx.Set("username", claims.Username)
-	ctx.Set("email", claims.Email)
-	ctx.Set("role", claims.Role)
+	isValid := claims.IsValid
+	ctx.Locals("username", claims.Username)
+	ctx.Locals("email", claims.Email)
+	ctx.Locals("role", claims.Role)
+	ctx.Locals("is_valid", strconv.FormatBool(isValid))
 	return ctx.Next()
 }
 
@@ -70,8 +73,10 @@ func MiddlewareRefreshToken(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token has expired", nil)
 	}
 
+	isValid := claims.IsValid
 	ctx.Locals("username", claims.Username)
 	ctx.Locals("email", claims.Email)
 	ctx.Locals("role", claims.Role)
+	ctx.Locals("is_valid", strconv.FormatBool(isValid))
 	return ctx.Next()
 }

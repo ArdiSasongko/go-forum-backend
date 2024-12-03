@@ -10,9 +10,9 @@ import (
 	"database/sql"
 )
 
-const createUser = `-- name: CreateUser :exec
+const createUser = `-- name: CreateUser :one
 INSERT INTO users (name, username, email, password, role, is_valid)
-VALUES ($1, $2, $3, $4, $5, $6)
+VALUES ($1, $2, $3, $4, $5, $6) RETURNING id
 `
 
 type CreateUserParams struct {
@@ -24,8 +24,8 @@ type CreateUserParams struct {
 	IsValid  sql.NullBool
 }
 
-func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
-	_, err := q.db.ExecContext(ctx, createUser,
+func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (int32, error) {
+	row := q.db.QueryRowContext(ctx, createUser,
 		arg.Name,
 		arg.Username,
 		arg.Email,
@@ -33,7 +33,9 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.Role,
 		arg.IsValid,
 	)
-	return err
+	var id int32
+	err := row.Scan(&id)
+	return id, err
 }
 
 const getUser = `-- name: GetUser :one

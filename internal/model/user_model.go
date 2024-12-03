@@ -44,3 +44,17 @@ func (u RefreshToken) Validate() error {
 	v := validator.New()
 	return v.Struct(u)
 }
+
+type ValidateToken struct {
+	Token int32 `json:"token" validate:"required"`
+}
+
+func (u ValidateToken) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}
+
+type ValidatePayload struct {
+	Token    int32  `json:"token"`
+	Username string `json:"username"`
+}
