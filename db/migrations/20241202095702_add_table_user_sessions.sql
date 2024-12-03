@@ -6,7 +6,7 @@ create table if not exists user_sessions (
     token_expired timestamp not null,
     refresh_token varchar(255) not null,
     refresh_token_expired timestamp not null,
-    constraint fk_user_id foreign key (user_id) references users(id),
+    constraint fk_user_id foreign key (user_id) references users(id) on delete cascade,
     constraint unique_user_id unique (user_id)
 );
 -- +goose StatementEnd

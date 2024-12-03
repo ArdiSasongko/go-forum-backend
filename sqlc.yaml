@@ -14,6 +14,13 @@ sql:
       go:
         package: "usersession"
         out: "./internal/db/usersession"
+  - engine: "postgresql"
+    queries: "./db/queries/token/*.sql"
+    schema: "./db/migrations"
+    gen:
+      go:
+        package: "tokentable"
+        out: "./internal/db/token"
   # - engine: "postgresql"
   #   queries: "./db/queries/comment/*.sql"
   #   schema: "./db/migrations/comment"
