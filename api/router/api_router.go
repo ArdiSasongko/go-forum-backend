@@ -3,6 +3,7 @@ package router
 import (
 	"github.com/ArdiSasongko/go-forum-backend/internal/handler"
 	"github.com/ArdiSasongko/go-forum-backend/internal/service"
+	"github.com/ArdiSasongko/go-forum-backend/pkg/middleware"
 	"github.com/gofiber/fiber/v2"
 )
 
@@ -21,4 +22,5 @@ func (h ApiRouter) InstallRouter(app *fiber.App) {
 	userHandler := handler.NewUserHandler(h.userService)
 	authGroupV1.Post("/register", userHandler.Register)
 	authGroupV1.Post("/login", userHandler.Login)
+	authGroupV1.Put("/refresh-token", middleware.MiddlewareRefreshToken, userHandler.RefreshToken)
 }
