@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
-	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/db/token"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
+	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/token"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 	"github.com/sirupsen/logrus"
 )
@@ -80,7 +80,7 @@ func (s *userService) ResendEmail(ctx context.Context, payload model.ValidatePay
 	}
 
 	logrus.Info(validationToken)
-	err = utils.SendToken(user.Email, "email", int32(validationToken))
+	err = utils.SendToken(user.Email, "resend_email", int32(validationToken))
 	if err != nil {
 		logrus.WithField("send email", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to send email :%v", err)

@@ -6,7 +6,7 @@ export $(shell sed 's/=.*//' .env)
 MIGRATIONS_DIR := ./db/migrations
 
 # Commands
-.PHONY: tidy build run help create migrate-up migrate-down status rollback 
+.PHONY: tidy build run help create migrate-up migrate-down status rollback sqlc-gen
 
 tidy:
 	@go mod tidy

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/ArdiSasongko/go-forum-backend/internal/db/usersession"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
 )
 
 type userSessionRepository struct {

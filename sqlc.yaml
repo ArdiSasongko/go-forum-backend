@@ -6,21 +6,21 @@ sql:
     gen:
       go:
         package: "user"
-        out: "./internal/db/user"
+        out: "./internal/sqlc/user"
   - engine: "postgresql"
     queries: "./db/queries/usersession/*.sql"
     schema: "./db/migrations"
     gen:
       go:
         package: "usersession"
-        out: "./internal/db/usersession"
+        out: "./internal/sqlc/usersession"
   - engine: "postgresql"
     queries: "./db/queries/token/*.sql"
     schema: "./db/migrations"
     gen:
       go:
         package: "tokentable"
-        out: "./internal/db/token"
+        out: "./internal/sqlc/token"
   # - engine: "postgresql"
   #   queries: "./db/queries/comment/*.sql"
   #   schema: "./db/migrations/comment"

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/ArdiSasongko/go-forum-backend/api/router"
+	v1 "github.com/ArdiSasongko/go-forum-backend/api/v1"
 	"github.com/ArdiSasongko/go-forum-backend/env"
 	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
 	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
@@ -28,7 +28,7 @@ func Setup() *fiber.App {
 	userSessionRepo := userrepository.NewUserSessionRepository(db)
 	tokenRepo := tokenrepository.NewTokenRepository(db)
 	userService := userservice.NewUserService(userRepo, userSessionRepo, tokenRepo, db)
-	apiRouter := router.NewApiRouter(userService)
+	apiRouter := v1.NewApiRouter(userService)
 
 	app := fiber.New()
 	app.Use(recover.New())

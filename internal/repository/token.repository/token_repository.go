@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/db/token"
+	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/token"
 )
 
 type tokenRepository struct {
