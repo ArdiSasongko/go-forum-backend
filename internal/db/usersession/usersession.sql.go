@@ -36,6 +36,23 @@ func (q *Queries) GetToken(ctx context.Context, userID int32) (UserSession, erro
 	return i, err
 }
 
+const getTokenByToken = `-- name: GetTokenByToken :one
+SELECT user_id, token, token_expired, refresh_token, refresh_token_expired FROM user_sessions WHERE token = $1
+`
+
+func (q *Queries) GetTokenByToken(ctx context.Context, token string) (UserSession, error) {
+	row := q.db.QueryRowContext(ctx, getTokenByToken, token)
+	var i UserSession
+	err := row.Scan(
+		&i.UserID,
+		&i.Token,
+		&i.TokenExpired,
+		&i.RefreshToken,
+		&i.RefreshTokenExpired,
+	)
+	return i, err
+}
+
 const insertToken = `-- name: InsertToken :one
 INSERT INTO user_sessions (user_id, token, token_expired, refresh_token, refresh_token_expired) VALUES ($1, $2, $3, $4, $5) RETURNING token, refresh_token
 `

@@ -29,3 +29,18 @@ type ResponseLogin struct {
 	Token        string `json:"token"`
 	RefreshToken string `json:"refresh_token"`
 }
+
+type PayloadToken struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Role     string `json:"role"`
+}
+
+type RefreshToken struct {
+	Token string `json:"token" validate:"required"`
+}
+
+func (u RefreshToken) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}

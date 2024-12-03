@@ -47,3 +47,7 @@ func (r *userSessionRepository) DeleteToken(ctx context.Context, tx *sql.Tx, use
 	q := r.queries.WithTx(tx)
 	return q.DeleteToken(ctx, userid)
 }
+
+func (r *userSessionRepository) GetTokenByToken(ctx context.Context, token string) (usersession.UserSession, error) {
+	return r.queries.GetTokenByToken(ctx, token)
+}

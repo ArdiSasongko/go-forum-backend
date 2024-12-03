@@ -1,6 +1,9 @@
 -- name: GetToken :one
 SELECT * FROM user_sessions WHERE user_id = $1;
 
+-- name: GetTokenByToken :one
+SELECT * FROM user_sessions WHERE token = $1;
+
 -- name: InsertToken :one
 INSERT INTO user_sessions (user_id, token, token_expired, refresh_token, refresh_token_expired) VALUES ($1, $2, $3, $4, $5) RETURNING token, refresh_token;
 
