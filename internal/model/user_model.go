@@ -1,6 +1,10 @@
 package model
 
-import "github.com/go-playground/validator/v10"
+import (
+	"mime/multipart"
+
+	"github.com/go-playground/validator/v10"
+)
 
 type UserModel struct {
 	Name     string `json:"name" validate:"required,min=1,max=255"`
@@ -88,4 +92,24 @@ type ProfileModel struct {
 	ImageURL string `json:"image_url"`
 	IsValid  bool   `json:"is_valid"`
 	Role     string `json:"role"`
+}
+
+type UpdateProfile struct {
+	Email string                  `json:"email"`
+	Files []*multipart.FileHeader `json:"file" validate:"omitempty"`
+}
+
+func (u UpdateProfile) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}
+
+type UpdateUser struct {
+	Username string `json:"username" validate:"required,min=6,max=255"`
+	Name     string `json:"name" validate:"omitempty,min=1,max=255"`
+}
+
+func (u UpdateUser) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
 }

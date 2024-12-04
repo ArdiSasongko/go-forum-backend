@@ -3,6 +3,7 @@ package cld
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"mime/multipart"
 	"os"
@@ -94,9 +95,11 @@ func UploadImage(ctx context.Context, file *multipart.FileHeader, url, folder st
 }
 
 func GetPublicID(imageUrl, folder string) (string, error) {
-	filePath := strings.Split(imageUrl, folder)[1]
+	validFolder := fmt.Sprintf("/%s/", folder)
+	filePath := strings.Split(imageUrl, validFolder)[1]
 	publicID := strings.TrimSuffix(filePath, path.Ext(filePath))
-	return publicID, nil
+	validPublicID := fmt.Sprintf("%s/%s", folder, publicID)
+	return validPublicID, nil
 }
 
 func DestroyImage(ctx context.Context, url, publicID string) error {
@@ -106,6 +109,7 @@ func DestroyImage(ctx context.Context, url, publicID string) error {
 		return err
 	}
 
+	logrus.Info(publicID)
 	_, err = cld.Client.Upload.Destroy(ctx, uploader.DestroyParams{PublicID: publicID})
 	if err != nil {
 		logrus.WithField("delete image", err.Error()).Error(err.Error())
