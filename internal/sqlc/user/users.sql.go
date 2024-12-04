@@ -65,6 +65,35 @@ func (q *Queries) GetUser(ctx context.Context, arg GetUserParams) (User, error) 
 	return i, err
 }
 
+const getUserProfile = `-- name: GetUserProfile :one
+SELECT u.id, u.name, u.username, u.email, i.image_url, u.is_valid, u.role FROM users u JOIN images_user i ON u.id = i.user_id WHERE u.username = $1
+`
+
+type GetUserProfileRow struct {
+	ID       int32
+	Name     string
+	Username string
+	Email    string
+	ImageUrl string
+	IsValid  sql.NullBool
+	Role     Roles
+}
+
+func (q *Queries) GetUserProfile(ctx context.Context, username string) (GetUserProfileRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserProfile, username)
+	var i GetUserProfileRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Username,
+		&i.Email,
+		&i.ImageUrl,
+		&i.IsValid,
+		&i.Role,
+	)
+	return i, err
+}
+
 const updatePassword = `-- name: UpdatePassword :exec
 UPDATE users set password = $1 where id = $2
 `

@@ -21,10 +21,10 @@ sql:
       go:
         package: "tokentable"
         out: "./internal/sqlc/token"
-  # - engine: "postgresql"
-  #   queries: "./db/queries/comment/*.sql"
-  #   schema: "./db/migrations/comment"
-  #   gen:
-  #     go:
-  #       package: "comment"
-  #       out: "./internal/db/comment"
+  - engine: "postgresql"
+    queries: "./db/queries/image_user/*.sql"
+    schema: "./db/migrations"
+    gen:
+      go:
+        package: "imageuser"
+        out: "./internal/sqlc/image_user"

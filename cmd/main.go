@@ -5,11 +5,13 @@ import (
 
 	v1 "github.com/ArdiSasongko/go-forum-backend/api/v1"
 	"github.com/ArdiSasongko/go-forum-backend/env"
+	imagesuserrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/images.user.repository"
 	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
 	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
 	userservice "github.com/ArdiSasongko/go-forum-backend/internal/service/user.service"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	_ "github.com/lib/pq"
@@ -27,10 +29,13 @@ func Setup() *fiber.App {
 	userRepo := userrepository.NewuserRepository(db)
 	userSessionRepo := userrepository.NewUserSessionRepository(db)
 	tokenRepo := tokenrepository.NewTokenRepository(db)
-	userService := userservice.NewUserService(userRepo, userSessionRepo, tokenRepo, db)
+	imageUserRepo := imagesuserrepository.NewImageUserRepository(db)
+
+	userService := userservice.NewUserService(userRepo, userSessionRepo, tokenRepo, imageUserRepo, db)
 	apiRouter := v1.NewApiRouter(userService)
 
 	app := fiber.New()
+	app.Use(cors.New())
 	app.Use(recover.New())
 	app.Use(logger.New())
 

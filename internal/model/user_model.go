@@ -79,3 +79,13 @@ func (u ResetPassword) Validate() error {
 	v := validator.New()
 	return v.Struct(u)
 }
+
+type ProfileModel struct {
+	ID       int32  `json:"id"`
+	Name     string `json:"name"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	ImageURL string `json:"image_url"`
+	IsValid  bool   `json:"is_valid"`
+	Role     string `json:"role"`
+}
