@@ -17,19 +17,19 @@ func NewUserHandler(service userservice.UserService) *userHandler {
 }
 
 func (h *userHandler) Register(ctx *fiber.Ctx) error {
-	user := new(model.UserModel)
+	request := new(model.UserModel)
 
-	if err := ctx.BodyParser(user); err != nil {
+	if err := ctx.BodyParser(request); err != nil {
 		logrus.WithField("parsing body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := user.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		logrus.WithField("validate body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.CreateUser(ctx.Context(), *user); err != nil {
+	if err := h.service.CreateUser(ctx.Context(), *request); err != nil {
 		logrus.WithField("create user", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -38,19 +38,19 @@ func (h *userHandler) Register(ctx *fiber.Ctx) error {
 }
 
 func (h *userHandler) Login(ctx *fiber.Ctx) error {
-	user := new(model.LoginRequest)
+	request := new(model.LoginRequest)
 
-	if err := ctx.BodyParser(user); err != nil {
+	if err := ctx.BodyParser(request); err != nil {
 		logrus.WithField("parsing body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := user.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		logrus.WithField("validate body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	token, err := h.service.LoginUser(ctx.Context(), *user)
+	token, err := h.service.LoginUser(ctx.Context(), *request)
 	if err != nil {
 		logrus.WithField("login user", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
@@ -60,13 +60,13 @@ func (h *userHandler) Login(ctx *fiber.Ctx) error {
 }
 
 func (h *userHandler) RefreshToken(ctx *fiber.Ctx) error {
-	token := new(model.RefreshToken)
-	if err := ctx.BodyParser(token); err != nil {
+	request := new(model.RefreshToken)
+	if err := ctx.BodyParser(request); err != nil {
 		logrus.WithField("parsing body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := token.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		logrus.WithField("validate body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -77,7 +77,7 @@ func (h *userHandler) RefreshToken(ctx *fiber.Ctx) error {
 		Role:     ctx.Locals("role").(string),
 	}
 
-	newToken, err := h.service.RefreshToken(ctx.Context(), payload, *token)
+	newToken, err := h.service.RefreshToken(ctx.Context(), payload, *request)
 	if err != nil {
 		logrus.WithField("get token", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
