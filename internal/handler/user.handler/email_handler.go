@@ -8,20 +8,20 @@ import (
 )
 
 func (h *userHandler) ValidateUser(ctx *fiber.Ctx) error {
-	token := new(model.ValidateToken)
+	request := new(model.ValidateToken)
 
-	if err := ctx.BodyParser(token); err != nil {
+	if err := ctx.BodyParser(request); err != nil {
 		logrus.WithField("parsing body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := token.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		logrus.WithField("validate body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
 	payload := model.ValidatePayload{
-		Token:    token.Token,
+		Token:    request.Token,
 		Username: ctx.Locals("username").(string),
 	}
 

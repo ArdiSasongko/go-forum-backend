@@ -62,15 +62,10 @@ func MiddlewareRefreshToken(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "empty header authorization", nil)
 	}
 
-	claims, err := utils.ValidateToken(ctx.Context(), auth)
+	claims, err := utils.ValidateRefreshToken(ctx.Context(), auth)
 	if err != nil {
 		logrus.WithField("validate token", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "failed validated token", nil)
-	}
-
-	if time.Now().Unix() > claims.ExpiresAt.Unix() {
-		logrus.WithField("validate token", "token has expired").Error("token has expired")
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token has expired", nil)
 	}
 
 	isValid := claims.IsValid

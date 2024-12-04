@@ -39,13 +39,15 @@ func (h *userHandler) UpdateProfile(ctx *fiber.Ctx) error {
 	}
 
 	files, err := ctx.MultipartForm()
-	if len(files.File["file"]) > 1 {
-		logrus.WithField("update image profile", "only one image can upload to updated").Error("only one can upload to updated")
-		return types.SendResponse(ctx, fiber.StatusBadRequest, "only one image can upload to updated", nil)
-	}
+	if err == nil {
+		if len(files.File["file"]) > 1 {
+			logrus.WithField("update image profile", "only one image can upload to updated").Error("only one can upload to updated")
+			return types.SendResponse(ctx, fiber.StatusBadRequest, "only one image can upload to updated", nil)
+		}
 
-	if err == nil && len(files.File["file"]) > 0 {
-		request.Files = files.File["file"]
+		if len(files.File["file"]) == 1 {
+			request.Files = files.File["file"]
+		}
 	}
 
 	request.Email = email

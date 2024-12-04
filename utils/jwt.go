@@ -72,3 +72,29 @@ func ValidateToken(ctx context.Context, token string) (*ClaimsToken, error) {
 
 	return claimToken, nil
 }
+
+func ValidateRefreshToken(ctx context.Context, token string) (*ClaimsToken, error) {
+	var (
+		claimToken *ClaimsToken
+		ok         bool
+	)
+
+	jwtToken, err := jwt.ParseWithClaims(token, &ClaimsToken{}, func(t *jwt.Token) (interface{}, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			logrus.WithField("jwt token", t.Header["alg"]).Error(t.Header["alg"])
+			return nil, fmt.Errorf("failed validate method jwt : %v", t.Header["alg"])
+		}
+		return secretKey, nil
+	}, jwt.WithoutClaimsValidation())
+
+	if err != nil {
+		logrus.WithField("jwt token", err.Error()).Error(err.Error())
+		return nil, fmt.Errorf("failed parse token : %v", err)
+	}
+
+	if claimToken, ok = jwtToken.Claims.(*ClaimsToken); !ok || !jwtToken.Valid {
+		return nil, fmt.Errorf("token invalid : %v", err)
+	}
+
+	return claimToken, nil
+}

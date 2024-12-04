@@ -8,19 +8,19 @@ import (
 )
 
 func (h *userHandler) ResetPassword(ctx *fiber.Ctx) error {
-	email := new(model.SendEmail)
+	request := new(model.SendEmail)
 
-	if err := ctx.BodyParser(email); err != nil {
+	if err := ctx.BodyParser(request); err != nil {
 		logrus.WithField("parsing body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := email.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		logrus.WithField("validate body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.ResetPassword(ctx.Context(), *email); err != nil {
+	if err := h.service.ResetPassword(ctx.Context(), *request); err != nil {
 		logrus.WithField("Reset Password", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -29,19 +29,19 @@ func (h *userHandler) ResetPassword(ctx *fiber.Ctx) error {
 }
 
 func (h *userHandler) ConfirmPassowrd(ctx *fiber.Ctx) error {
-	payload := new(model.ResetPassword)
+	request := new(model.ResetPassword)
 
-	if err := ctx.BodyParser(payload); err != nil {
+	if err := ctx.BodyParser(request); err != nil {
 		logrus.WithField("parsing body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := payload.Validate(); err != nil {
+	if err := request.Validate(); err != nil {
 		logrus.WithField("validate body", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.ConfirmPassword(ctx.Context(), *payload); err != nil {
+	if err := h.service.ConfirmPassword(ctx.Context(), *request); err != nil {
 		logrus.WithField("Confirm Password", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
