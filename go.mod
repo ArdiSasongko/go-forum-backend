@@ -11,6 +11,7 @@ require (
 	github.com/lib/pq v1.10.9
 	github.com/sirupsen/logrus v1.9.3
 	golang.org/x/crypto v0.19.0
+	golang.org/x/exp v0.0.0-20241108190413-2d47ceb2692f
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )
 

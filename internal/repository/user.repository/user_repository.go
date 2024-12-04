@@ -20,7 +20,8 @@ type UserRepository interface {
 	GetUser(ctx context.Context, tx *sql.Tx, id int32, username, email string) (user.User, error)
 	ValidateUser(ctx context.Context, tx *sql.Tx, userId int32) error
 	UpdatePassword(ctx context.Context, tx *sql.Tx, password string, userID int32) error
-	GetProfile(ctx context.Context, tx *sql.Tx, username string) (user.GetUserProfileRow, error)
+	GetProfile(ctx context.Context, tx *sql.Tx, email string) (user.GetUserProfileRow, error)
+	UpdateUser(ctx context.Context, tx *sql.Tx, model user.UpdateUserParams) error
 }
 
 func (r *userRepository) CreateUser(ctx context.Context, tx *sql.Tx, model user.User) (int32, error) {
@@ -57,7 +58,16 @@ func (r *userRepository) UpdatePassword(ctx context.Context, tx *sql.Tx, passwor
 	})
 }
 
-func (r *userRepository) GetProfile(ctx context.Context, tx *sql.Tx, username string) (user.GetUserProfileRow, error) {
+func (r *userRepository) GetProfile(ctx context.Context, tx *sql.Tx, email string) (user.GetUserProfileRow, error) {
 	q := r.queries.WithTx(tx)
-	return q.GetUserProfile(ctx, username)
+	return q.GetUserProfile(ctx, email)
+}
+
+func (r *userRepository) UpdateUser(ctx context.Context, tx *sql.Tx, model user.UpdateUserParams) error {
+	q := r.queries.WithTx(tx)
+	return q.UpdateUser(ctx, user.UpdateUserParams{
+		Name:     model.Name,
+		Username: model.Username,
+		ID:       model.ID,
+	})
 }

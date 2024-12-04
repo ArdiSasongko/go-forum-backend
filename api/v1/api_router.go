@@ -16,10 +16,11 @@ func NewApiRouter(userService userservice.UserService) *ApiRouter {
 }
 
 func (h ApiRouter) InstallRouter(app *fiber.App) {
-	authGroup := app.Group("/user")
-	authGroupV1 := authGroup.Group("/v1")
-
 	userHandler := userhandler.NewUserHandler(h.userService)
+
+	// auth router
+	authGroup := app.Group("/auth")
+	authGroupV1 := authGroup.Group("/v1")
 	authGroupV1.Post("/register", userHandler.Register)
 	authGroupV1.Post("/login", userHandler.Login)
 	authGroupV1.Put("/refresh-token", middleware.MiddlewareRefreshToken, userHandler.RefreshToken)
@@ -28,5 +29,10 @@ func (h ApiRouter) InstallRouter(app *fiber.App) {
 	authGroupV1.Put("/password/forgot", userHandler.ResetPassword)
 	authGroupV1.Put("/password/reset", userHandler.ConfirmPassowrd)
 
-	authGroupV1.Get("/profile", middleware.MiddlewareAuthValidate, userHandler.GetProfile)
+	// user router
+	userGroup := app.Group("/user")
+	userGroupV1 := userGroup.Group("/v1")
+	userGroupV1.Get("/profile", middleware.MiddlewareAuthValidate, userHandler.GetProfile)
+	userGroupV1.Put("/profile", middleware.MiddlewareAuthValidate, userHandler.UpdateUser)
+	userGroupV1.Put("/profile/image", middleware.MiddlewareAuthValidate, userHandler.UpdateProfile)
 }
