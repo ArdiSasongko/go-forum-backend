@@ -13,3 +13,6 @@ UPDATE users set password = $1 where id = $2;
 
 -- name: ValidateUser :exec
 UPDATE users set is_valid = true where id = $1;
+
+-- name: GetUserProfile :one
+SELECT u.id, u.name, u.username, u.email, i.image_url, u.is_valid, u.role FROM users u JOIN images_user i ON u.id = i.user_id WHERE u.username = $1;

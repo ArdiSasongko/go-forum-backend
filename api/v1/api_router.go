@@ -27,4 +27,6 @@ func (h ApiRouter) InstallRouter(app *fiber.App) {
 	authGroupV1.Get("/validate/resend", middleware.MiddlewareAuthValidate, userHandler.ResendEmail)
 	authGroupV1.Put("/password/forgot", userHandler.ResetPassword)
 	authGroupV1.Put("/password/reset", userHandler.ConfirmPassowrd)
+
+	authGroupV1.Get("/profile", middleware.MiddlewareAuthValidate, userHandler.GetProfile)
 }

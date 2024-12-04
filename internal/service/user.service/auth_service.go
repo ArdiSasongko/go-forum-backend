@@ -6,12 +6,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ArdiSasongko/go-forum-backend/env"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
+	imagesuserrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/images.user.repository"
 	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
 	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
+	imageuser "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/image_user"
 	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/token"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/user"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
+	cld "github.com/ArdiSasongko/go-forum-backend/pkg/cloudinary"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/bcrypt"
@@ -21,6 +25,7 @@ type userService struct {
 	repo        userrepository.UserRepository
 	sessionRepo userrepository.UserSession
 	tokenRepo   tokenrepository.TokenRepository
+	imageRepo   imagesuserrepository.ImageUserRepository
 	db          *sql.DB
 }
 
@@ -28,11 +33,13 @@ func NewUserService(
 	repo userrepository.UserRepository,
 	sessionRepo userrepository.UserSession,
 	tokenRepo tokenrepository.TokenRepository,
+	imageRepo imagesuserrepository.ImageUserRepository,
 	db *sql.DB) *userService {
 	return &userService{
 		repo:        repo,
 		sessionRepo: sessionRepo,
 		tokenRepo:   tokenRepo,
+		imageRepo:   imageRepo,
 		db:          db,
 	}
 }
@@ -45,6 +52,7 @@ type UserService interface {
 	ResendEmail(ctx context.Context, payload model.ValidatePayload) error
 	ResetPassword(ctx context.Context, req model.SendEmail) error
 	ConfirmPassword(ctx context.Context, req model.ResetPassword) error
+	GetProfile(ctx context.Context, username string) (*model.ProfileModel, error)
 }
 
 func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error {
@@ -90,9 +98,36 @@ func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error
 		return fmt.Errorf("failed to create new user :%v", err)
 	}
 
+	// upload image
+	url := env.GetEnv("CLOUDINARY_URL", "")
+	profile, _, err := utils.GetProfile()
+	if err != nil {
+		logrus.WithField("get profile", err.Error()).Error(err.Error())
+		return fmt.Errorf("failed to get profile :%v", err)
+	}
+
+	imageUrl, publicID, err := cld.UploadImageByte(ctx, profile, url, "forum-profile")
+	if err != nil {
+		logrus.WithField("upload image", err.Error()).Error(err.Error())
+		return fmt.Errorf("failed to upload image profile :%v", err)
+	}
+	// insert image
+	imageModel := imageuser.CreateImageParams{
+		UserID:   id,
+		ImageUrl: imageUrl,
+	}
+
+	if err := s.imageRepo.InsertImage(ctx, tx, imageModel); err != nil {
+		if err := cld.DestroyImage(ctx, url, publicID); err != nil {
+			logrus.WithField("delete image", err.Error()).Error(err.Error())
+			return fmt.Errorf("failed to delete image profile :%v", err)
+		}
+		logrus.WithField("insert image", err.Error()).Error(err.Error())
+		return fmt.Errorf("failed to insert image profile :%v", err)
+	}
+
 	// create token
 	validationToken := utils.GenToken()
-
 	tokenModel := tokentable.CreateTokenParams{
 		UserID:    id,
 		TokenType: "email",

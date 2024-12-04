@@ -95,6 +95,14 @@ func (ns NullTokenType) Value() (driver.Value, error) {
 	return string(ns.TokenType), nil
 }
 
+type ImagesUser struct {
+	ID        int32
+	UserID    int32
+	ImageUrl  string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
 type Token struct {
 	UserID    int32
 	TokenType TokenType
