@@ -48,6 +48,7 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 	}
 
 	isValid := claims.IsValid
+	ctx.Locals("user_id", claims.UserID)
 	ctx.Locals("username", claims.Username)
 	ctx.Locals("email", claims.Email)
 	ctx.Locals("role", claims.Role)
@@ -69,6 +70,7 @@ func MiddlewareRefreshToken(ctx *fiber.Ctx) error {
 	}
 
 	isValid := claims.IsValid
+	ctx.Locals("user_id", claims.UserID)
 	ctx.Locals("username", claims.Username)
 	ctx.Locals("email", claims.Email)
 	ctx.Locals("role", claims.Role)

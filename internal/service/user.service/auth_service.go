@@ -136,6 +136,7 @@ func (s *userService) LoginUser(ctx context.Context, req model.LoginRequest) (*m
 
 	// generate token and refresh token
 	claims := utils.ClaimsToken{
+		UserID:   user.ID,
 		Username: user.Username,
 		Email:    user.Email,
 		Role:     string(user.Role),
@@ -244,6 +245,7 @@ func (s *userService) RefreshToken(ctx context.Context, req model.PayloadToken, 
 
 	// create new token
 	claims := utils.ClaimsToken{
+		UserID:   req.UserID,
 		Username: req.Username,
 		Email:    req.Email,
 		Role:     req.Role,

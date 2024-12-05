@@ -8,6 +8,7 @@ import (
 	imagesuserrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/images.user.repository"
 	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
 	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
+	contentservice "github.com/ArdiSasongko/go-forum-backend/internal/service/content.service"
 	userservice "github.com/ArdiSasongko/go-forum-backend/internal/service/user.service"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/gofiber/fiber/v2"
@@ -31,8 +32,9 @@ func Setup() *fiber.App {
 	tokenRepo := tokenrepository.NewTokenRepository(db)
 	imageUserRepo := imagesuserrepository.NewImageUserRepository(db)
 
+	contentService := contentservice.NewContentService(db)
 	userService := userservice.NewUserService(userRepo, userSessionRepo, tokenRepo, imageUserRepo, db)
-	apiRouter := v1.NewApiRouter(userService)
+	apiRouter := v1.NewApiRouter(userService, contentService)
 
 	app := fiber.New()
 	app.Use(cors.New())

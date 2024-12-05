@@ -72,6 +72,7 @@ func (h *userHandler) RefreshToken(ctx *fiber.Ctx) error {
 	}
 
 	payload := model.PayloadToken{
+		UserID:   ctx.Locals("user_id").(int32),
 		Username: ctx.Locals("username").(string),
 		Email:    ctx.Locals("email").(string),
 		Role:     ctx.Locals("role").(string),
