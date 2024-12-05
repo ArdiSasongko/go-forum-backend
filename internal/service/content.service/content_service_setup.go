@@ -13,10 +13,15 @@ type contentService struct {
 }
 
 func NewContentService(db *sql.DB) *contentService {
-	return &contentService{db: db}
+	return &contentService{
+		db: db,
+	}
 }
 
+type Queries struct {
+	ContentQueries *content.Queries
+}
 type ContentService interface {
-	InsertContent(ctx context.Context, queries *content.Queries, model model.ContentModel) error
-	GetContents(ctx context.Context, queries *content.Queries, limit, offset int32) (*[]model.ContentsResponse, error)
+	InsertContent(ctx context.Context, queries Queries, model model.ContentModel) error
+	GetContents(ctx context.Context, queries Queries, limit, offset int32) (*[]model.ContentsResponse, error)
 }

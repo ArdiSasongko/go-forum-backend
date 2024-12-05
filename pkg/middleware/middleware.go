@@ -6,7 +6,6 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/env"
-	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
@@ -26,11 +25,14 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 	if err != nil {
 		logrus.WithField("database", err.Error()).Fatal(err.Error())
 	}
+	tx, err := db.BeginTx(ctx.Context(), nil)
+	defer utils.Tx(tx, err)
 
-	token, err := userrepository.NewUserSessionRepository(db).GetTokenByToken(ctx.Context(), auth)
+	userSessionQueries := usersession.New(db).WithTx(tx)
+	token, err := userSessionQueries.GetTokenByToken(ctx.Context(), auth)
 	if token == (usersession.UserSession{}) {
-		logrus.WithField("get token", "token empty in database").Error("token empty in database")
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token empty in database", nil)
+		logrus.WithField("get token", "token is invalid").Error("token is invalid")
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token is invalid, not found in database", nil)
 	} else if err != nil {
 		logrus.WithField("get token", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "failed get token", nil)

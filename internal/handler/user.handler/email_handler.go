@@ -25,7 +25,7 @@ func (h *userHandler) ValidateUser(ctx *fiber.Ctx) error {
 		Username: ctx.Locals("username").(string),
 	}
 
-	if err := h.service.ValidateEmail(ctx.Context(), payload); err != nil {
+	if err := h.service.ValidateEmail(ctx.Context(), queries, payload); err != nil {
 		logrus.WithField("validate email", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -38,7 +38,7 @@ func (h *userHandler) ResendEmail(ctx *fiber.Ctx) error {
 		Username: ctx.Locals("username").(string),
 	}
 
-	if err := h.service.ResendEmail(ctx.Context(), payload); err != nil {
+	if err := h.service.ResendEmail(ctx.Context(), queries, payload); err != nil {
 		logrus.WithField("resend email", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}

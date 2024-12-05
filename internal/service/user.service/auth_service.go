@@ -18,12 +18,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error {
+func (s *userService) CreateUser(ctx context.Context, queries Queries, req model.UserModel) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
-
+	userQueries := queries.UserQueries.WithTx(tx)
+	tokenQueries := queries.TokenQueries.WithTx(tx)
+	imageQueries := queries.ImageUserQueries.WithTx(tx)
 	// checking username in database
-	_, err = s.repo.GetUser(ctx, tx, 0, req.Username, "")
+	_, err = userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: req.Username,
+		Email:    "",
+	})
 	if err == nil {
 		return fmt.Errorf("username already used")
 	} else if err != sql.ErrNoRows {
@@ -32,7 +38,11 @@ func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error
 	}
 
 	// checking email in database
-	_, err = s.repo.GetUser(ctx, tx, 0, "", req.Email)
+	_, err = userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: "",
+		Email:    req.Email,
+	})
 	if err == nil {
 		return fmt.Errorf("email already used")
 	} else if err != sql.ErrNoRows {
@@ -46,16 +56,14 @@ func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error
 		return fmt.Errorf("failed to generated hash password :%v", err)
 	}
 
-	model := user.User{
+	id, err := userQueries.CreateUser(ctx, user.CreateUserParams{
 		Name:     req.Name,
 		Username: req.Username,
 		Email:    req.Email,
 		Password: string(hash),
 		Role:     "user",
 		IsValid:  sql.NullBool{Bool: false, Valid: true},
-	}
-
-	id, err := s.repo.CreateUser(ctx, tx, model)
+	})
 	if err != nil {
 		logrus.WithField("create user", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to create new user :%v", err)
@@ -74,13 +82,12 @@ func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error
 		logrus.WithField("upload image", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to upload image profile :%v", err)
 	}
+
 	// insert image
-	imageModel := imageuser.CreateImageParams{
+	if err := imageQueries.CreateImage(ctx, imageuser.CreateImageParams{
 		UserID:   id,
 		ImageUrl: imageUrl,
-	}
-
-	if err := s.imageRepo.InsertImage(ctx, tx, imageModel); err != nil {
+	}); err != nil {
 		if err := cld.DestroyImage(ctx, url, publicID); err != nil {
 			logrus.WithField("delete image", err.Error()).Error(err.Error())
 			return fmt.Errorf("failed to delete image profile :%v", err)
@@ -91,14 +98,12 @@ func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error
 
 	// create token
 	validationToken := utils.GenToken()
-	tokenModel := tokentable.CreateTokenParams{
+	err = tokenQueries.CreateToken(ctx, tokentable.CreateTokenParams{
 		UserID:    id,
 		TokenType: "email",
 		Token:     int32(validationToken),
 		ExpiredAt: time.Now().UTC().Add(5 * time.Minute),
-	}
-
-	err = s.tokenRepo.InsertToken(ctx, tx, tokenModel)
+	})
 	if err != nil {
 		logrus.WithField("create token", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to create new token :%v", err)
@@ -113,12 +118,17 @@ func (s *userService) CreateUser(ctx context.Context, req model.UserModel) error
 	return nil
 }
 
-func (s *userService) LoginUser(ctx context.Context, req model.LoginRequest) (*model.ResponseLogin, error) {
+func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.LoginRequest) (*model.ResponseLogin, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
-
+	userQueries := queries.UserQueries.WithTx(tx)
+	userSessionQueries := queries.UserSessionQueries.WithTx(tx)
 	// get user
-	user, err := s.repo.GetUser(ctx, tx, 0, "", req.Email)
+	user, err := userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: "",
+		Email:    req.Email,
+	})
 	if err == sql.ErrNoRows {
 		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
 		return nil, fmt.Errorf("invalid credentials")
@@ -165,9 +175,9 @@ func (s *userService) LoginUser(ctx context.Context, req model.LoginRequest) (*m
 		RefreshTokenExpired: currentTime.Add(utils.MapToken["refresh_token"]),
 	}
 
-	validToken, err := s.sessionRepo.GetToken(ctx, tx, user.ID)
+	validToken, err := userSessionQueries.GetToken(ctx, user.ID)
 	if err == sql.ErrNoRows {
-		_, err := s.sessionRepo.InsertToken(ctx, tx, tokenModel)
+		_, err := userSessionQueries.InsertToken(ctx, usersession.InsertTokenParams(tokenModel))
 		if err != nil {
 			logrus.WithField("insert token", err.Error()).Error(err.Error())
 			return nil, fmt.Errorf("failed to insert token: %v", err)
@@ -183,7 +193,13 @@ func (s *userService) LoginUser(ctx context.Context, req model.LoginRequest) (*m
 
 	logrus.Info(validToken.TokenExpired, currentTime)
 	if validToken.RefreshTokenExpired.Before(currentTime) {
-		err := s.sessionRepo.UpdateToken(ctx, tx, tokenModel)
+		err := userSessionQueries.UpdateToken(ctx, usersession.UpdateTokenParams{
+			UserID:              user.ID,
+			Token:               token,
+			TokenExpired:        currentTime.Add(utils.MapToken["token"]),
+			RefreshToken:        refreshToken,
+			RefreshTokenExpired: currentTime.Add(utils.MapToken["refresh_token"]),
+		})
 		if err != nil {
 			logrus.WithField("update token", err.Error()).Error(err.Error())
 			return nil, fmt.Errorf("failed to update token: %v", err)
@@ -194,9 +210,13 @@ func (s *userService) LoginUser(ctx context.Context, req model.LoginRequest) (*m
 			RefreshToken: tokenModel.RefreshToken,
 		}, nil
 	} else if validToken.TokenExpired.Before(currentTime) {
-		tokenModel.RefreshToken = validToken.RefreshToken
-		tokenModel.RefreshTokenExpired = validToken.RefreshTokenExpired
-		err := s.sessionRepo.UpdateToken(ctx, tx, tokenModel)
+		err := userSessionQueries.UpdateToken(ctx, usersession.UpdateTokenParams{
+			UserID:              user.ID,
+			Token:               token,
+			TokenExpired:        currentTime.Add(utils.MapToken["token"]),
+			RefreshToken:        validToken.RefreshToken,
+			RefreshTokenExpired: validToken.RefreshTokenExpired,
+		})
 		if err != nil {
 			logrus.WithField("update token", err.Error()).Error(err.Error())
 			return nil, fmt.Errorf("failed to update token: %v", err)
@@ -214,19 +234,24 @@ func (s *userService) LoginUser(ctx context.Context, req model.LoginRequest) (*m
 	}, nil
 }
 
-func (s *userService) RefreshToken(ctx context.Context, req model.PayloadToken, token model.RefreshToken) (string, error) {
+func (s *userService) RefreshToken(ctx context.Context, queries Queries, req model.PayloadToken, token model.RefreshToken) (string, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
-
+	userQueris := queries.UserQueries.WithTx(tx)
+	userSessionQueries := queries.UserSessionQueries.WithTx(tx)
 	// get user
-	user, err := s.repo.GetUser(ctx, tx, 0, req.Username, "")
+	user, err := userQueris.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: req.Username,
+		Email:    "",
+	})
 	if err != nil || err == sql.ErrNoRows {
 		logrus.WithField("get user", err.Error()).Error(err.Error())
 		return "", fmt.Errorf("failed get user : %v", err)
 	}
 
 	// get token
-	validToken, err := s.sessionRepo.GetToken(ctx, tx, user.ID)
+	validToken, err := userSessionQueries.GetToken(ctx, user.ID)
 	if err != nil || err == sql.ErrNoRows {
 		logrus.WithField("get token", err.Error()).Error(err.Error())
 		return "", fmt.Errorf("failed get token : %v", err)
@@ -257,15 +282,13 @@ func (s *userService) RefreshToken(ctx context.Context, req model.PayloadToken, 
 		return "", fmt.Errorf("failed create token : %v", err)
 	}
 
-	model := usersession.UserSession{
+	if err := userSessionQueries.UpdateToken(ctx, usersession.UpdateTokenParams{
 		UserID:              user.ID,
 		Token:               newToken,
 		TokenExpired:        currentTime.Add(utils.MapToken["token"]),
 		RefreshToken:        validToken.RefreshToken,
 		RefreshTokenExpired: validToken.RefreshTokenExpired,
-	}
-
-	if err := s.sessionRepo.UpdateToken(ctx, tx, model); err != nil {
+	}); err != nil {
 		logrus.WithField("update token", err.Error()).Error(err.Error())
 		return "", fmt.Errorf("failed to update token : %v", err)
 	}
