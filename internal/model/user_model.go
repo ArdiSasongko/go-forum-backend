@@ -35,6 +35,7 @@ type ResponseLogin struct {
 }
 
 type PayloadToken struct {
+	UserID   int32  `json:"user_id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Role     string `json:"role"`

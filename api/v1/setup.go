@@ -7,10 +7,10 @@ type Router interface {
 }
 
 func InstallRouter(app *fiber.App) {
-	setUp(app, ApiRouter{})
+	setup(app, &ApiRouter{})
 }
 
-func setUp(app *fiber.App, router ...Router) {
+func setup(app *fiber.App, router ...Router) {
 	for _, r := range router {
 		r.InstallRouter(app)
 	}

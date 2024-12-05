@@ -28,3 +28,10 @@ sql:
       go:
         package: "imageuser"
         out: "./internal/sqlc/image_user"
+  - engine: "postgresql"
+    queries: "./db/queries/content/*.sql"
+    schema: "./db/migrations"
+    gen:
+      go:
+        package: "content"
+        out: "./internal/sqlc/content"

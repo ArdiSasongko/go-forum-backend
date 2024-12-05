@@ -11,6 +11,7 @@ import (
 )
 
 type ClaimsToken struct {
+	UserID   int32  `json:"user_id"`
 	Username string `json:"username"`
 	Email    string `json:"email"`
 	Role     string `json:"role"`
@@ -27,6 +28,7 @@ var secretKey = []byte(env.GetEnv("JWT_SECRET", ""))
 
 func GenerateToken(ctx context.Context, claims ClaimsToken, tokenType string) (string, error) {
 	claimsToken := ClaimsToken{
+		UserID:   claims.UserID,
 		Username: claims.Username,
 		Email:    claims.Email,
 		Role:     claims.Role,
