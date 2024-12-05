@@ -5,9 +5,6 @@ import (
 
 	v1 "github.com/ArdiSasongko/go-forum-backend/api/v1"
 	"github.com/ArdiSasongko/go-forum-backend/env"
-	imagesuserrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/images.user.repository"
-	tokenrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/token.repository"
-	userrepository "github.com/ArdiSasongko/go-forum-backend/internal/repository/user.repository"
 	contentservice "github.com/ArdiSasongko/go-forum-backend/internal/service/content.service"
 	userservice "github.com/ArdiSasongko/go-forum-backend/internal/service/user.service"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
@@ -27,13 +24,8 @@ func Setup() *fiber.App {
 		logrus.WithField("database", err.Error()).Fatal(err.Error())
 	}
 
-	userRepo := userrepository.NewuserRepository(db)
-	userSessionRepo := userrepository.NewUserSessionRepository(db)
-	tokenRepo := tokenrepository.NewTokenRepository(db)
-	imageUserRepo := imagesuserrepository.NewImageUserRepository(db)
-
 	contentService := contentservice.NewContentService(db)
-	userService := userservice.NewUserService(userRepo, userSessionRepo, tokenRepo, imageUserRepo, db)
+	userService := userservice.NewUserService(db)
 	apiRouter := v1.NewApiRouter(userService, contentService)
 
 	app := fiber.New()

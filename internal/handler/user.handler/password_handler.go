@@ -20,7 +20,7 @@ func (h *userHandler) ResetPassword(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.ResetPassword(ctx.Context(), *request); err != nil {
+	if err := h.service.ResetPassword(ctx.Context(), queries, *request); err != nil {
 		logrus.WithField("Reset Password", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -41,7 +41,7 @@ func (h *userHandler) ConfirmPassowrd(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.ConfirmPassword(ctx.Context(), *request); err != nil {
+	if err := h.service.ConfirmPassword(ctx.Context(), queries, *request); err != nil {
 		logrus.WithField("Confirm Password", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}

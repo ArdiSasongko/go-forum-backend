@@ -14,11 +14,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s *userService) GetProfile(ctx context.Context, email string) (*model.ProfileModel, error) {
+func (s *userService) GetProfile(ctx context.Context, queris Queries, email string) (*model.ProfileModel, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
+	userQueries := queris.UserQueries.WithTx(tx)
 
-	user, err := s.repo.GetProfile(ctx, tx, email)
+	user, err := userQueries.GetUserProfile(ctx, email)
 	if err == sql.ErrNoRows {
 		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
 		return nil, fmt.Errorf("user didn't exist")
@@ -40,12 +41,18 @@ func (s *userService) GetProfile(ctx context.Context, email string) (*model.Prof
 	return response, nil
 }
 
-func (s *userService) UpdateProfile(ctx context.Context, req model.UpdateProfile) error {
+func (s *userService) UpdateProfile(ctx context.Context, queries Queries, req model.UpdateProfile) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
+	userQueries := queries.UserQueries.WithTx(tx)
+	imageUserQueries := queries.ImageUserQueries.WithTx(tx)
 
 	logrus.Info(req.Email)
-	user, err := s.repo.GetUser(ctx, tx, 0, "", req.Email)
+	user, err := userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: "",
+		Email:    req.Email,
+	})
 	if err == sql.ErrNoRows {
 		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
 		return fmt.Errorf("invalid credentials")
@@ -54,7 +61,7 @@ func (s *userService) UpdateProfile(ctx context.Context, req model.UpdateProfile
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
-	validImga, err := s.imageRepo.GetImage(ctx, tx, user.ID)
+	validImg, err := imageUserQueries.GetImage(ctx, user.ID)
 	if err != nil {
 		logrus.WithField("get image", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to get image: %v", err)
@@ -71,12 +78,10 @@ func (s *userService) UpdateProfile(ctx context.Context, req model.UpdateProfile
 
 		publicIDs = append(publicIDs, publicID)
 
-		imageModel := imageuser.UpdateImageParams{
+		err = imageUserQueries.UpdateImage(ctx, imageuser.UpdateImageParams{
 			UserID:   user.ID,
 			ImageUrl: imgUrl,
-		}
-
-		err = s.imageRepo.UpdateImage(ctx, tx, imageModel)
+		})
 		if err != nil {
 			for _, id := range publicIDs {
 				cld.DestroyImage(ctx, url, id)
@@ -86,7 +91,7 @@ func (s *userService) UpdateProfile(ctx context.Context, req model.UpdateProfile
 		}
 	}
 
-	oldImage, err := cld.GetPublicID(validImga.ImageUrl, "forum-profile")
+	oldImage, err := cld.GetPublicID(validImg.ImageUrl, "forum-profile")
 	if err != nil {
 		logrus.WithField("get publicID", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to get publicID: %v", err)
@@ -101,12 +106,17 @@ func (s *userService) UpdateProfile(ctx context.Context, req model.UpdateProfile
 	return nil
 }
 
-func (s *userService) UpdateUser(ctx context.Context, req model.UpdateUser, email string) error {
+func (s *userService) UpdateUser(ctx context.Context, queries Queries, req model.UpdateUser, email string) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
+	userQueries := queries.UserQueries.WithTx(tx)
 
 	logrus.Info(email)
-	validUser, err := s.repo.GetUser(ctx, tx, 0, "", email)
+	validUser, err := userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: "",
+		Email:    email,
+	})
 	if err == sql.ErrNoRows {
 		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
 		return fmt.Errorf("email didnt exists")
@@ -115,13 +125,11 @@ func (s *userService) UpdateUser(ctx context.Context, req model.UpdateUser, emai
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
-	modelUpdate := user.UpdateUserParams{
+	if err := userQueries.UpdateUser(ctx, user.UpdateUserParams{
 		Name:     utils.DefaultValue[string](validUser.Name, req.Name),
 		Username: utils.DefaultValue[string](validUser.Username, req.Username),
 		ID:       validUser.ID,
-	}
-
-	if err := s.repo.UpdateUser(ctx, tx, modelUpdate); err != nil {
+	}); err != nil {
 		logrus.WithField("update user", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to update user : %v", err)
 	}

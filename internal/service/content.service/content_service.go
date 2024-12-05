@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/ArdiSasongko/go-forum-backend/env"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
@@ -14,13 +15,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func (s *contentService) InsertContent(ctx context.Context, queries *content.Queries, model model.ContentModel) error {
+func (s *contentService) InsertContent(ctx context.Context, queries Queries, model model.ContentModel) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
 
-	q := queries.WithTx(tx)
+	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	contentID, err := q.InsertContent(ctx, content.InsertContentParams{
+	contentID, err := contentQueries.InsertContent(ctx, content.InsertContentParams{
 		UserID:         model.UserID,
 		ContentTitle:   model.ContentTitle,
 		ContentBody:    model.ContentBody,
@@ -44,7 +45,7 @@ func (s *contentService) InsertContent(ctx context.Context, queries *content.Que
 
 		publicIDs = append(publicIDs, publicID)
 
-		if err := q.InsertImageContent(ctx, content.InsertImageContentParams{
+		if err := contentQueries.InsertImageContent(ctx, content.InsertImageContentParams{
 			ContentID: contentID,
 			ImageUrl:  imgUrl,
 		}); err != nil {
@@ -52,7 +53,7 @@ func (s *contentService) InsertContent(ctx context.Context, queries *content.Que
 				cld.DestroyImage(ctx, url, id)
 			}
 
-			if err := q.DeleteImageContent(ctx, content.DeleteImageContentParams{
+			if err := contentQueries.DeleteImageContent(ctx, content.DeleteImageContentParams{
 				ContentID: contentID,
 				ImageUrl:  imgUrl,
 			}); err != nil {
@@ -66,13 +67,13 @@ func (s *contentService) InsertContent(ctx context.Context, queries *content.Que
 	return nil
 }
 
-func (s *contentService) GetContents(ctx context.Context, queries *content.Queries, limit, offset int32) (*[]model.ContentsResponse, error) {
+func (s *contentService) GetContents(ctx context.Context, queries Queries, limit, offset int32) (*[]model.ContentsResponse, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
 
-	q := queries.WithTx(tx)
+	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	contents, err := q.GetContents(ctx, content.GetContentsParams{
+	contents, err := contentQueries.GetContents(ctx, content.GetContentsParams{
 		Limit:  int32(limit),
 		Offset: int32(offset),
 	})
@@ -87,30 +88,78 @@ func (s *contentService) GetContents(ctx context.Context, queries *content.Queri
 	}
 
 	allContents := make([]model.ContentsResponse, 0, len(contents))
+	var wg sync.WaitGroup
+	resultsChan := make(chan model.ContentsResponse, len(contents))
+	errsChan := make(chan error, len(contents))
 
-	for _, content := range contents {
-		var imageURLs []string
-		if content.ImageUrls != nil {
-			if err := json.Unmarshal([]byte(content.ImageUrls), &imageURLs); err != nil {
-				logrus.WithField("unmarshal image urls", err.Error()).Error("failed to unmarshal image urls")
-				return nil, fmt.Errorf("failed to parse image urls: %v", err)
+	for _, con := range contents {
+		wg.Add(1)
+		go func(content content.GetContentsRow) {
+			defer wg.Done()
+
+			var imageURLs []string
+			if content.ImageUrls != nil {
+				if err := json.Unmarshal(con.ImageUrls, &imageURLs); err != nil {
+					errsChan <- fmt.Errorf("failed to parse image urls: %v", err)
+					return
+				}
 			}
-		}
-		images := make([]model.ImageContent, 0, len(imageURLs))
-		for _, url := range imageURLs {
-			images = append(images, model.ImageContent{ImageURL: url})
-		}
 
-		item := model.ContentsResponse{
-			ContentID:      int(content.ID),
-			ContentTitle:   content.ContentTitle,
-			ContentBody:    content.ContentBody,
-			ContentImage:   images,
-			ContentHastags: strings.Split(content.ContentHastags, ","),
-		}
+			images := make([]model.ImageContent, 0, len(imageURLs))
+			for _, url := range imageURLs {
+				images = append(images, model.ImageContent{ImageURL: url})
+			}
 
+			item := model.ContentsResponse{
+				ContentID:      int(content.ID),
+				ContentTitle:   content.ContentTitle,
+				ContentBody:    content.ContentBody,
+				ContentImage:   images,
+				ContentHastags: strings.Split(content.ContentHastags, ","),
+			}
+
+			resultsChan <- item
+		}(con)
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+		close(errsChan)
+	}()
+
+	for err := range errsChan {
+		logrus.WithField("error", err.Error()).Error("error process content")
+		return nil, err
+	}
+
+	for item := range resultsChan {
 		allContents = append(allContents, item)
 	}
+
+	// for _, content := range contents {
+	// 	var imageURLs []string
+	// 	if content.ImageUrls != nil {
+	// 		if err := json.Unmarshal([]byte(content.ImageUrls), &imageURLs); err != nil {
+	// 			logrus.WithField("unmarshal image urls", err.Error()).Error("failed to unmarshal image urls")
+	// 			return nil, fmt.Errorf("failed to parse image urls: %v", err)
+	// 		}
+	// 	}
+	// 	images := make([]model.ImageContent, 0, len(imageURLs))
+	// 	for _, url := range imageURLs {
+	// 		images = append(images, model.ImageContent{ImageURL: url})
+	// 	}
+
+	// 	item := model.ContentsResponse{
+	// 		ContentID:      int(content.ID),
+	// 		ContentTitle:   content.ContentTitle,
+	// 		ContentBody:    content.ContentBody,
+	// 		ContentImage:   images,
+	// 		ContentHastags: strings.Split(content.ContentHastags, ","),
+	// 	}
+
+	// 	allContents = append(allContents, item)
+	// }
 
 	return &allContents, nil
 }

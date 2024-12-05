@@ -11,7 +11,7 @@ import (
 
 func (h *userHandler) GetProfile(ctx *fiber.Ctx) error {
 	email := ctx.Locals("email").(string)
-	result, err := h.service.GetProfile(ctx.Context(), email)
+	result, err := h.service.GetProfile(ctx.Context(), queries, email)
 	if err == sql.ErrNoRows {
 		logrus.WithField("get profile", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusNotFound, err.Error(), nil)
@@ -52,7 +52,7 @@ func (h *userHandler) UpdateProfile(ctx *fiber.Ctx) error {
 
 	request.Email = email
 
-	if err := h.service.UpdateProfile(ctx.Context(), *request); err != nil {
+	if err := h.service.UpdateProfile(ctx.Context(), queries, *request); err != nil {
 		logrus.WithField("update image profile", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -74,7 +74,7 @@ func (h *userHandler) UpdateUser(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.UpdateUser(ctx.Context(), *request, email); err != nil {
+	if err := h.service.UpdateUser(ctx.Context(), queries, *request, email); err != nil {
 		logrus.WithField("update user", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}

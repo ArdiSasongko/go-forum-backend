@@ -8,16 +8,24 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
 	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/token"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/user"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 	"github.com/sirupsen/logrus"
 )
 
-func (s *userService) ValidateEmail(ctx context.Context, payload model.ValidatePayload) error {
+func (s *userService) ValidateEmail(ctx context.Context, queries Queries, payload model.ValidatePayload) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
 
+	userQueries := queries.UserQueries.WithTx(tx)
+	tokenQueries := queries.TokenQueries.WithTx(tx)
+
 	logrus.Info("username", payload.Username)
-	user, err := s.repo.GetUser(ctx, tx, 0, payload.Username, "")
+	user, err := userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: payload.Username,
+		Email:    "",
+	})
 	if err == sql.ErrNoRows {
 		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
 		return fmt.Errorf("invalid credentials")
@@ -26,7 +34,10 @@ func (s *userService) ValidateEmail(ctx context.Context, payload model.ValidateP
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
-	validToken, err := s.tokenRepo.GetToken(ctx, tx, user.ID, payload.Token)
+	validToken, err := tokenQueries.GetToken(ctx, tokentable.GetTokenParams{
+		UserID: user.ID,
+		Token:  payload.Token,
+	})
 	if err != nil {
 		logrus.WithField("get validate token", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed get validate token : %v", err)
@@ -40,12 +51,15 @@ func (s *userService) ValidateEmail(ctx context.Context, payload model.ValidateP
 		return fmt.Errorf("token has expired, please resend new token")
 	}
 
-	if err := s.repo.ValidateUser(ctx, tx, user.ID); err != nil {
+	if err := userQueries.ValidateUser(ctx, user.ID); err != nil {
 		logrus.WithField("validate user", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to validate user : %v", err)
 	}
 
-	if err := s.tokenRepo.DeleteToken(ctx, tx, user.ID, "email"); err != nil {
+	if err := tokenQueries.DeleteToken(ctx, tokentable.DeleteTokenParams{
+		UserID:    user.ID,
+		TokenType: "email",
+	}); err != nil {
 		logrus.WithField("delete token", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to delete token : %v", err)
 	}
@@ -53,11 +67,18 @@ func (s *userService) ValidateEmail(ctx context.Context, payload model.ValidateP
 	return nil
 }
 
-func (s *userService) ResendEmail(ctx context.Context, payload model.ValidatePayload) error {
+func (s *userService) ResendEmail(ctx context.Context, queries Queries, payload model.ValidatePayload) error {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
 
-	user, err := s.repo.GetUser(ctx, tx, 0, payload.Username, "")
+	userQueries := queries.UserQueries.WithTx(tx)
+	tokenQueries := queries.TokenQueries.WithTx(tx)
+
+	user, err := userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       0,
+		Username: payload.Username,
+		Email:    "",
+	})
 	if err == sql.ErrNoRows {
 		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
 		return fmt.Errorf("invalid credentials")
@@ -67,13 +88,11 @@ func (s *userService) ResendEmail(ctx context.Context, payload model.ValidatePay
 	}
 
 	validationToken := utils.GenToken()
-	tokenModel := tokentable.UpdateTokenParams{
+	err = tokenQueries.UpdateToken(ctx, tokentable.UpdateTokenParams{
 		UserID:    user.ID,
 		Token:     int32(validationToken),
 		ExpiredAt: time.Now().UTC().Add(5 * time.Minute),
-	}
-
-	err = s.tokenRepo.UpdateToken(ctx, tx, tokenModel)
+	})
 	if err != nil {
 		logrus.WithField("update token", err.Error()).Error(err.Error())
 		return fmt.Errorf("failed to create new token :%v", err)

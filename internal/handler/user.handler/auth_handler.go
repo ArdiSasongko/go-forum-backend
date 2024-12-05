@@ -3,18 +3,9 @@ package userhandler
 import (
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
-	userservice "github.com/ArdiSasongko/go-forum-backend/internal/service/user.service"
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
 )
-
-type userHandler struct {
-	service userservice.UserService
-}
-
-func NewUserHandler(service userservice.UserService) *userHandler {
-	return &userHandler{service: service}
-}
 
 func (h *userHandler) Register(ctx *fiber.Ctx) error {
 	request := new(model.UserModel)
@@ -29,7 +20,7 @@ func (h *userHandler) Register(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	if err := h.service.CreateUser(ctx.Context(), *request); err != nil {
+	if err := h.service.CreateUser(ctx.Context(), queries, *request); err != nil {
 		logrus.WithField("create user", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
@@ -50,7 +41,7 @@ func (h *userHandler) Login(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
-	token, err := h.service.LoginUser(ctx.Context(), *request)
+	token, err := h.service.LoginUser(ctx.Context(), queries, *request)
 	if err != nil {
 		logrus.WithField("login user", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
@@ -78,7 +69,7 @@ func (h *userHandler) RefreshToken(ctx *fiber.Ctx) error {
 		Role:     ctx.Locals("role").(string),
 	}
 
-	newToken, err := h.service.RefreshToken(ctx.Context(), payload, *request)
+	newToken, err := h.service.RefreshToken(ctx.Context(), queries, payload, *request)
 	if err != nil {
 		logrus.WithField("get token", err.Error()).Error(err.Error())
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
