@@ -31,9 +31,6 @@ jobs:
       - name: Login Docker
         run: docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_PASSWORD }}
       
-      - name: Prepare Cache Directory
-        run: mkdir -p /tmp/.buildx-cache
-
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
@@ -41,12 +38,9 @@ jobs:
           key: ${{ runner.os }}-docker-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-docker-
-
-      - name: Build Docker Image with Cache
-        run: |
-          DOCKER_BUILDKIT=1 docker build --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache \
-            -t ${{ secrets.DOCKER_USERNAME }}/cicd:${{ github.sha }} .
+      
+      - name: Build Docker Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/cicd:${{ github.sha }} .
       
       - name: Push Docker Image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/cicd:${{ github.sha }}
