@@ -39,5 +39,5 @@ func Setup() *fiber.App {
 
 func main() {
 	app := Setup()
-	logrus.Fatal(app.Listen(fmt.Sprintf("%s:%s", env.GetEnv("APP_HOST", "localhost"), env.GetEnv("APP_PORT", "4000"))))
+	logrus.Fatal(app.Listen(fmt.Sprintf("%s:%s", env.GetEnv("APP_HOST", "0.0.0.0"), env.GetEnv("APP_PORT", "4000"))))
 }
