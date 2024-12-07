@@ -2,7 +2,7 @@ package contentservice
 
 import (
 	"context"
-	"encoding/json"
+	"database/sql"
 	"fmt"
 	"strings"
 	"sync"
@@ -97,17 +97,12 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 		go func(content content.GetContentsRow) {
 			defer wg.Done()
 
-			var imageURLs []string
-			if content.ImageUrls != nil {
-				if err := json.Unmarshal(con.ImageUrls, &imageURLs); err != nil {
-					errsChan <- fmt.Errorf("failed to parse image urls: %v", err)
-					return
+			var images []model.ImageContent
+			if len(content.ImageUrls) > 0 {
+				imageURLs := strings.Split(string(content.ImageUrls), ",")
+				for _, url := range imageURLs {
+					images = append(images, model.ImageContent{ImageURL: strings.TrimSpace(url)})
 				}
-			}
-
-			images := make([]model.ImageContent, 0, len(imageURLs))
-			for _, url := range imageURLs {
-				images = append(images, model.ImageContent{ImageURL: url})
 			}
 
 			item := model.ContentsResponse{
@@ -137,29 +132,64 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 		allContents = append(allContents, item)
 	}
 
-	// for _, content := range contents {
-	// 	var imageURLs []string
-	// 	if content.ImageUrls != nil {
-	// 		if err := json.Unmarshal([]byte(content.ImageUrls), &imageURLs); err != nil {
-	// 			logrus.WithField("unmarshal image urls", err.Error()).Error("failed to unmarshal image urls")
-	// 			return nil, fmt.Errorf("failed to parse image urls: %v", err)
-	// 		}
-	// 	}
-	// 	images := make([]model.ImageContent, 0, len(imageURLs))
-	// 	for _, url := range imageURLs {
-	// 		images = append(images, model.ImageContent{ImageURL: url})
-	// 	}
-
-	// 	item := model.ContentsResponse{
-	// 		ContentID:      int(content.ID),
-	// 		ContentTitle:   content.ContentTitle,
-	// 		ContentBody:    content.ContentBody,
-	// 		ContentImage:   images,
-	// 		ContentHastags: strings.Split(content.ContentHastags, ","),
-	// 	}
-
-	// 	allContents = append(allContents, item)
-	// }
-
 	return &allContents, nil
+}
+
+func (s *contentService) GetContent(ctx context.Context, queries Queries, contentID int32) (*model.ContentResponse, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	defer utils.Tx(tx, err)
+	contentQueries := queries.ContentQueries.WithTx(tx)
+
+	contentRow, err := contentQueries.GetContent(ctx, contentID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logrus.WithField("get content", "content didnt exist").Error("failed to get content")
+			return nil, fmt.Errorf("failed to get content : %v", err)
+		}
+		logrus.WithField("get content", err.Error()).Error("failed to get content")
+		return nil, fmt.Errorf("failed to get content : %v", err)
+	}
+
+	contentResponse := model.ContentResponse{
+		ContentID:      int(contentRow.ID),
+		ContentTitle:   contentRow.ContentTitle,
+		ContentBody:    contentRow.ContentBody,
+		ContentHastags: strings.Split(contentRow.ContentHastags, ","),
+		CreatedAt:      contentRow.CreatedAt,
+		UpdatedAt:      contentRow.UpdatedAt,
+		CreatedBy:      contentRow.CreatedBy,
+	}
+
+	logrus.Info(contentResponse.ContentID)
+	allImages := make([]model.ImageContent, 0, len(contentRow.ImageUrls))
+	var wg sync.WaitGroup
+	resultsChan := make(chan model.ImageContent, len(contentRow.ImageUrls))
+
+	if len(contentRow.ImageUrls) > 0 {
+		imageURLs := strings.Split(string(contentRow.ImageUrls), ",")
+		for _, url := range imageURLs {
+			wg.Add(1)
+			go func(imageURL string) {
+				defer wg.Done()
+				resultsChan <- model.ImageContent{ImageURL: strings.TrimSpace(imageURL)}
+			}(url)
+		}
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsChan)
+	}()
+
+	go func() {
+		for img := range resultsChan {
+			allImages = append(allImages, img)
+		}
+	}()
+
+	wg.Wait()
+
+	contentResponse.ContentImage = allImages
+
+	return &contentResponse, nil
 }

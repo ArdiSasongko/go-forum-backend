@@ -1,6 +1,8 @@
 package contenthandler
 
 import (
+	"database/sql"
+
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
 	"github.com/gofiber/fiber/v2"
@@ -47,7 +49,7 @@ func (h *contentHandler) GetContents(ctx *fiber.Ctx) error {
 
 	contents, err := h.service.GetContents(ctx.Context(), queries, int32(limit), int32(offset))
 	if err != nil {
-		logrus.WithField("get contents", err.Error()).Error(err.Error())
+		logrus.WithField("get contents", err.Error()).Error("failed to get contents")
 		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
 	}
 
@@ -60,4 +62,19 @@ func (h *contentHandler) GetContents(ctx *fiber.Ctx) error {
 	}
 
 	return types.SendResponse(ctx, fiber.StatusOK, "success get contents", response)
+}
+
+func (h *contentHandler) GetContent(ctx *fiber.Ctx) error {
+	contentID, _ := ctx.ParamsInt("content_id")
+	content, err := h.service.GetContent(ctx.Context(), queries, int32(contentID))
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logrus.WithField("get contents", "content didnt exist").Error("failed to get content")
+			return types.SendResponse(ctx, fiber.StatusNotFound, "content didnt exist", nil)
+		}
+		logrus.WithField("get contents", err.Error()).Error("failed to get content")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+	}
+
+	return types.SendResponse(ctx, fiber.StatusOK, "success get content", content)
 }

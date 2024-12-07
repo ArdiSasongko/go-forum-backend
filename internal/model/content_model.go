@@ -2,6 +2,7 @@ package model
 
 import (
 	"mime/multipart"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -27,6 +28,18 @@ type ContentsResponse struct {
 	ContentBody    string         `json:"content_body"`
 	ContentImage   []ImageContent `json:"image_content"`
 	ContentHastags []string       `json:"content_hastags"`
+}
+
+// one
+type ContentResponse struct {
+	ContentID      int            `json:"content_id"`
+	ContentTitle   string         `json:"content_title"`
+	ContentBody    string         `json:"content_body"`
+	ContentImage   []ImageContent `json:"image_content"`
+	ContentHastags []string       `json:"content_hastags"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	CreatedBy      string         `json:"created_by"`
 }
 
 type ImageContent struct {
