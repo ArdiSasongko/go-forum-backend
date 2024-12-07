@@ -7,7 +7,6 @@ package content
 
 import (
 	"context"
-	"encoding/json"
 	"time"
 )
 
@@ -43,76 +42,64 @@ func (q *Queries) DeleteImagesContent(ctx context.Context, contentID int32) erro
 	return err
 }
 
-const getContent = `-- name: GetContent :many
+const getContent = `-- name: GetContent :one
 SELECT 
-c.id, 
-c.content_title,
-c.content_body,
-ARRAY_AGG(i.image_url) as image_urls, 
-c.content_hastags, 
-c.created_at, 
-c.updated_at, 
-c.created_by 
+    c.id, 
+    c.content_title,
+    c.content_body,
+    STRING_AGG(i.image_url, ',') AS image_urls,
+    c.content_hastags, 
+    c.created_at, 
+    c.updated_at, 
+    c.created_by 
 FROM contents c 
 LEFT JOIN images_content i 
 ON c.id = i.content_id 
 WHERE c.id = $1
+GROUP BY 
+    c.id, 
+    c.content_title,
+    c.content_body,
+    c.content_hastags, 
+    c.created_at, 
+    c.updated_at, 
+    c.created_by
 `
 
 type GetContentRow struct {
 	ID             int32
 	ContentTitle   string
 	ContentBody    string
-	ImageUrls      interface{}
+	ImageUrls      []byte
 	ContentHastags string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	CreatedBy      string
 }
 
-func (q *Queries) GetContent(ctx context.Context, id int32) ([]GetContentRow, error) {
-	rows, err := q.db.QueryContext(ctx, getContent, id)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GetContentRow
-	for rows.Next() {
-		var i GetContentRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ContentTitle,
-			&i.ContentBody,
-			&i.ImageUrls,
-			&i.ContentHastags,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.CreatedBy,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) GetContent(ctx context.Context, id int32) (GetContentRow, error) {
+	row := q.db.QueryRowContext(ctx, getContent, id)
+	var i GetContentRow
+	err := row.Scan(
+		&i.ID,
+		&i.ContentTitle,
+		&i.ContentBody,
+		&i.ImageUrls,
+		&i.ContentHastags,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CreatedBy,
+	)
+	return i, err
 }
 
 const getContents = `-- name: GetContents :many
 SELECT 
-c.id, 
-c.content_title, 
-c.content_body,
-c.content_hastags, 
-(
-    SELECT json_agg(image_url)
-    FROM images_content
-    WHERE content_id = c.id
-) AS image_urls
+    c.id, 
+    c.content_title, 
+    c.content_body,
+    c.content_hastags, 
+    STRING_AGG(i.image_url, ',') AS image_urls
 FROM contents c 
 LEFT JOIN images_content i 
 ON c.id = i.content_id 
@@ -131,7 +118,7 @@ type GetContentsRow struct {
 	ContentTitle   string
 	ContentBody    string
 	ContentHastags string
-	ImageUrls      json.RawMessage
+	ImageUrls      []byte
 }
 
 func (q *Queries) GetContents(ctx context.Context, arg GetContentsParams) ([]GetContentsRow, error) {

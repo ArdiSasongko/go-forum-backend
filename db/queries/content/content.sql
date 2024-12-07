@@ -4,32 +4,36 @@ contents (user_id, content_title, content_body, content_hastags, created_by, upd
 VALUES 
 ($1, $2, $3, $4, $5, $6) RETURNING id;
 
--- name: GetContent :many
+-- name: GetContent :one
 SELECT 
-c.id, 
-c.content_title,
-c.content_body,
-ARRAY_AGG(i.image_url) as image_urls, 
-c.content_hastags, 
-c.created_at, 
-c.updated_at, 
-c.created_by 
+    c.id, 
+    c.content_title,
+    c.content_body,
+    STRING_AGG(i.image_url, ',') AS image_urls,
+    c.content_hastags, 
+    c.created_at, 
+    c.updated_at, 
+    c.created_by 
 FROM contents c 
 LEFT JOIN images_content i 
 ON c.id = i.content_id 
-WHERE c.id = $1;
+WHERE c.id = $1
+GROUP BY 
+    c.id, 
+    c.content_title,
+    c.content_body,
+    c.content_hastags, 
+    c.created_at, 
+    c.updated_at, 
+    c.created_by;;
 
 -- name: GetContents :many
 SELECT 
-c.id, 
-c.content_title, 
-c.content_body,
-c.content_hastags, 
-(
-    SELECT json_agg(image_url)
-    FROM images_content
-    WHERE content_id = c.id
-) AS image_urls
+    c.id, 
+    c.content_title, 
+    c.content_body,
+    c.content_hastags, 
+    STRING_AGG(i.image_url, ',') AS image_urls
 FROM contents c 
 LEFT JOIN images_content i 
 ON c.id = i.content_id 

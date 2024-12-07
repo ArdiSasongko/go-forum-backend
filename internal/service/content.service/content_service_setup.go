@@ -24,4 +24,5 @@ type Queries struct {
 type ContentService interface {
 	InsertContent(ctx context.Context, queries Queries, model model.ContentModel) error
 	GetContents(ctx context.Context, queries Queries, limit, offset int32) (*[]model.ContentsResponse, error)
+	GetContent(ctx context.Context, queries Queries, contentID int32) (*model.ContentResponse, error)
 }
