@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
@@ -16,8 +17,8 @@ import (
 func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 	auth := ctx.Get("authorization")
 	if auth == "" {
-		logrus.WithField("get auth", "empty authorization header").Error("empty authorization")
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "empty header authorization", nil)
+		logrus.WithField("get auth", "empty authorization header").Error("UNAUTHORIZED")
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "empty header authorization")
 	}
 
 	dsn := env.GetEnv("DB_URL", "")
@@ -31,22 +32,22 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 	userSessionQueries := usersession.New(db).WithTx(tx)
 	token, err := userSessionQueries.GetTokenByToken(ctx.Context(), auth)
 	if token == (usersession.UserSession{}) {
-		logrus.WithField("get token", "token is invalid").Error("token is invalid")
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token is invalid, not found in database", nil)
+		logrus.WithField("get token", "token is invalid").Error("UNAUTHORIZED")
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "token is invalid")
 	} else if err != nil {
 		logrus.WithField("get token", err.Error()).Error(err.Error())
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "failed get token", nil)
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 	}
 
 	claims, err := utils.ValidateToken(ctx.Context(), auth)
 	if err != nil {
 		logrus.WithField("validate token", err.Error()).Error(err.Error())
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "failed validated token", nil)
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", err.Error())
 	}
 
 	if time.Now().Unix() > claims.ExpiresAt.Unix() {
 		logrus.WithField("validate token", "token has expired").Error("token has expired")
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "token has expired", nil)
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "token has expired")
 	}
 
 	isValid := claims.IsValid
@@ -58,17 +59,29 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 	return ctx.Next()
 }
 
+func CheckValidUser(ctx *fiber.Ctx) error {
+	IsValid := ctx.Locals("is_valid").(string)
+	IsValid = strings.ToLower(IsValid)
+
+	if IsValid != "true" {
+		logrus.WithField("check valid", "please validation email").Error("unauthorized")
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "Please Validation Your Email")
+	}
+
+	return ctx.Next()
+}
+
 func MiddlewareRefreshToken(ctx *fiber.Ctx) error {
 	auth := ctx.Get("authorization")
 	if auth == "" {
-		logrus.WithField("get auth", "empty authorization header").Error("empty authorization")
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "empty header authorization", nil)
+		logrus.WithField("get auth", "empty authorization header").Error("UNAUTHORIZED")
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "empty header authorization")
 	}
 
 	claims, err := utils.ValidateRefreshToken(ctx.Context(), auth)
 	if err != nil {
 		logrus.WithField("validate token", err.Error()).Error(err.Error())
-		return types.SendResponse(ctx, fiber.StatusUnauthorized, "failed validated token", nil)
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "failed validated token")
 	}
 
 	isValid := claims.IsValid

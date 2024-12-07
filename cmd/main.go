@@ -32,6 +32,9 @@ func Setup() *fiber.App {
 	app.Use(cors.New())
 	app.Use(recover.New())
 	app.Use(logger.New())
+	// app.Use(func(ctx *fiber.Ctx) error {
+	// 	return ctx.SendStatus(fiber.StatusNotFound)
+	// })
 
 	apiRouter.InstallRouter(app)
 	return app

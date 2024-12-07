@@ -56,7 +56,7 @@ func (h *ApiRouter) setupContentRouter(app *fiber.App) {
 	contentGroup := app.Group("/content")
 	contentGroupV1 := contentGroup.Group("/v1")
 
-	contentGroupV1.Post("/", middleware.MiddlewareAuthValidate, contentHandler.CreateContent)
+	contentGroupV1.Post("/", middleware.MiddlewareAuthValidate, middleware.CheckValidUser, contentHandler.CreateContent)
 	contentGroupV1.Get("/", contentHandler.GetContents)
 	contentGroupV1.Get("/:content_id", contentHandler.GetContent)
 	contentGroupV1.Get("/page/:page", contentHandler.GetContents)

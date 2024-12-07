@@ -5,6 +5,7 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/sirupsen/logrus"
 )
@@ -13,13 +14,22 @@ func (h *contentHandler) CreateContent(ctx *fiber.Ctx) error {
 	request := new(model.ContentModel)
 
 	if err := ctx.BodyParser(request); err != nil {
-		logrus.WithField("parsing body", err.Error()).Error(err.Error())
-		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		logrus.WithField("parsing body", "BAD REQUEST").Error(err.Error())
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
 	}
 
+	var ErrorMessages []types.ErrorField
 	if err := request.Validate(); err != nil {
-		logrus.WithField("validate body", err.Error()).Error(err.Error())
-		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		for _, errs := range err.(validator.ValidationErrors) {
+			var errMsg types.ErrorField
+			errMsg.FailedField = errs.Field()
+			errMsg.Tag = errs.Tag()
+			errMsg.Value = errs.Value()
+
+			ErrorMessages = append(ErrorMessages, errMsg)
+		}
+		logrus.WithField("validate body", "BAD REQUEST").Error(err.Error())
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", ErrorMessages)
 	}
 
 	files, err := ctx.MultipartForm()
@@ -31,8 +41,8 @@ func (h *contentHandler) CreateContent(ctx *fiber.Ctx) error {
 	request.Username = ctx.Locals("username").(string)
 
 	if err := h.service.InsertContent(ctx.Context(), queries, *request); err != nil {
-		logrus.WithField("create content", err.Error()).Error(err.Error())
-		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		logrus.WithField("create content", "BAD REQUEST").Error(err.Error())
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
 	}
 
 	return types.SendResponse(ctx, fiber.StatusCreated, "success created content", nil)
@@ -49,8 +59,8 @@ func (h *contentHandler) GetContents(ctx *fiber.Ctx) error {
 
 	contents, err := h.service.GetContents(ctx.Context(), queries, int32(limit), int32(offset))
 	if err != nil {
-		logrus.WithField("get contents", err.Error()).Error("failed to get contents")
-		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		logrus.WithField("get contents", "BAD REQUEST").Error("failed to get contents")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
 	}
 
 	response := fiber.Map{
@@ -69,11 +79,11 @@ func (h *contentHandler) GetContent(ctx *fiber.Ctx) error {
 	content, err := h.service.GetContent(ctx.Context(), queries, int32(contentID))
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logrus.WithField("get contents", "content didnt exist").Error("failed to get content")
-			return types.SendResponse(ctx, fiber.StatusNotFound, "content didnt exist", nil)
+			logrus.WithField("get contents", "BAD REQUEST").Error("failed to get content")
+			return types.SendResponse(ctx, fiber.StatusNotFound, "BAD REQUEST", sql.ErrNoRows)
 		}
-		logrus.WithField("get contents", err.Error()).Error("failed to get content")
-		return types.SendResponse(ctx, fiber.StatusBadRequest, err.Error(), nil)
+		logrus.WithField("get contents", "BAD REQUEST").Error("failed to get content")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
 	}
 
 	return types.SendResponse(ctx, fiber.StatusOK, "success get content", content)
