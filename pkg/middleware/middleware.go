@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	"github.com/ArdiSasongko/go-forum-backend/env"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/content"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/database"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
@@ -21,7 +22,7 @@ func MiddlewareAuthValidate(ctx *fiber.Ctx) error {
 		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "empty header authorization")
 	}
 
-	dsn := env.GetEnv("DB_URL", "")
+	var dsn = env.GetEnv("DB_URL", "")
 	db, err := database.InitDB(dsn)
 	if err != nil {
 		logrus.WithField("database", err.Error()).Fatal(err.Error())
@@ -90,5 +91,33 @@ func MiddlewareRefreshToken(ctx *fiber.Ctx) error {
 	ctx.Locals("email", claims.Email)
 	ctx.Locals("role", claims.Role)
 	ctx.Locals("is_valid", strconv.FormatBool(isValid))
+	return ctx.Next()
+}
+
+func MiddlewareAccess(ctx *fiber.Ctx) error {
+	username := ctx.Locals("username").(string)
+	role := ctx.Locals("role").(string)
+	contentID, _ := ctx.ParamsInt("content_id")
+
+	var dsn = env.GetEnv("DB_URL", "")
+	db, err := database.InitDB(dsn)
+	if err != nil {
+		logrus.WithField("database", err.Error()).Fatal(err.Error())
+	}
+	tx, err := db.BeginTx(ctx.Context(), nil)
+	defer utils.Tx(tx, err)
+
+	validContent, _ := content.New(db).WithTx(tx).GetContent(ctx.Context(), int32(contentID))
+	logrus.WithFields(logrus.Fields{
+		"username":       username,
+		"valid_username": validContent.CreatedBy,
+		"role":           role,
+		"contentID":      contentID,
+	}).Info("Validating access...")
+	if strings.ToLower(role) != "admin" && validContent.CreatedBy != username {
+		logrus.WithField("validate token", "UNAUTHORIZED").Error("ONLY ADMIN OR VALID USER CAN ACCESS")
+		return types.SendResponse(ctx, fiber.StatusUnauthorized, "UNAUTHORIZED", "ONLY ADMIN OR VALID USER CAN ACCESS")
+	}
+
 	return ctx.Next()
 }

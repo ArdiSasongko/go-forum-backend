@@ -88,3 +88,49 @@ func (h *contentHandler) GetContent(ctx *fiber.Ctx) error {
 
 	return types.SendResponse(ctx, fiber.StatusOK, "success get content", content)
 }
+
+func (h *contentHandler) UpdateContent(ctx *fiber.Ctx) error {
+	request := new(model.UpdateContent)
+	contentID, _ := ctx.ParamsInt("content_id")
+
+	if err := ctx.BodyParser(request); err != nil {
+		logrus.WithField("parsing body", "BAD REQUEST").Error(err.Error())
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
+	}
+
+	var ErrorMessages []types.ErrorField
+	if err := request.Validate(); err != nil {
+		for _, errs := range err.(validator.ValidationErrors) {
+			var errMsg types.ErrorField
+			errMsg.FailedField = errs.Field()
+			errMsg.Tag = errs.Tag()
+			errMsg.Value = errs.Value()
+
+			ErrorMessages = append(ErrorMessages, errMsg)
+		}
+		logrus.WithField("validate body", "BAD REQUEST").Error(err.Error())
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", ErrorMessages)
+	}
+
+	username := ctx.Locals("username").(string)
+	userID := ctx.Locals("user_id").(int32)
+
+	request.UpdatedBy = username
+	if err := h.service.UpdateContent(ctx.Context(), queries, int32(contentID), userID, *request); err != nil {
+		logrus.WithField("update content", err.Error()).Error("failed to update content")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
+	}
+
+	return types.SendResponse(ctx, fiber.StatusOK, "success update content", nil)
+}
+
+func (h *contentHandler) DeleteContent(ctx *fiber.Ctx) error {
+	contentID, _ := ctx.ParamsInt("content_id")
+
+	if err := h.service.DeleteContent(ctx.Context(), queries, int32(contentID)); err != nil {
+		logrus.WithField("delete content", err.Error()).Error("failed to delete content")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
+	}
+
+	return types.SendResponse(ctx, fiber.StatusOK, "success delete content", nil)
+}

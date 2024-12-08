@@ -222,7 +222,7 @@ func (q *Queries) InsertImageContent(ctx context.Context, arg InsertImageContent
 }
 
 const updateContent = `-- name: UpdateContent :exec
-UPDATE contents SET content_title = $2, content_body = $3, content_hastags = $4, updated_by = $5 WHERE id = $1 AND user_id = $6
+UPDATE contents SET content_title = $2, content_body = $3, content_hastags = $4, updated_by = $5, updated_at = $6 WHERE id = $1 AND user_id = $7
 `
 
 type UpdateContentParams struct {
@@ -231,6 +231,7 @@ type UpdateContentParams struct {
 	ContentBody    string
 	ContentHastags string
 	UpdatedBy      string
+	UpdatedAt      time.Time
 	UserID         int32
 }
 
@@ -241,6 +242,7 @@ func (q *Queries) UpdateContent(ctx context.Context, arg UpdateContentParams) er
 		arg.ContentBody,
 		arg.ContentHastags,
 		arg.UpdatedBy,
+		arg.UpdatedAt,
 		arg.UserID,
 	)
 	return err

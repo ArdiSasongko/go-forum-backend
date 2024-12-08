@@ -45,3 +45,15 @@ type ContentResponse struct {
 type ImageContent struct {
 	ImageURL string `json:"image_url"`
 }
+
+type UpdateContent struct {
+	ContentTitle   string   `json:"content_title" validate:"omitempty"`
+	ContentBody    string   `json:"content_body" validate:"omitempty"`
+	ContentHastags []string `json:"content_hastags" validate:"omitempty"`
+	UpdatedBy      string
+}
+
+func (u UpdateContent) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}
