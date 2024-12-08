@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	contentservice "github.com/ArdiSasongko/go-forum-backend/internal/service/content.service"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/comment"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/content"
 )
 
@@ -18,4 +19,5 @@ func NewContentHandler(service contentservice.ContentService) *contentHandler {
 var db *sql.DB
 var queries = contentservice.Queries{
 	ContentQueries: content.New(db),
+	CommentQueries: comment.New(db),
 }

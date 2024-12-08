@@ -40,8 +40,27 @@ type ContentResponse struct {
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	CreatedBy      string         `json:"created_by"`
+	ContentMetrics `json:"content_metrics"`
 }
 
+type ContentMetrics struct {
+	IsLike       bool `json:"is_liked"`
+	LikeCount    int  `json:"like_count"`
+	DislikeCount int  `json:"dislike_count"`
+	CommentCount int  `json:"comment_count"`
+	Pagination   `json:"pagination"`
+	Comments     []CommentsResponse `json:"comments"`
+}
+
+type Pagination struct {
+	Limit int32 `json:"limit"`
+}
+type CommentsResponse struct {
+	Username  string    `json:"username"`
+	Comment   string    `json:"comment"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
 type ImageContent struct {
 	ImageURL string `json:"image_url"`
 }
@@ -54,6 +73,18 @@ type UpdateContent struct {
 }
 
 func (u UpdateContent) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}
+
+type CommentModel struct {
+	UserID    int32  `json:"user_id"`
+	ContentID int32  `json:"content_id"`
+	Username  string `json:"username"`
+	Comment   string `json:"comment" validate:"omitempty"`
+}
+
+func (u CommentModel) Validate() error {
 	v := validator.New()
 	return v.Struct(u)
 }
