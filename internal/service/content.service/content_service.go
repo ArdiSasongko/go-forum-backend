@@ -10,6 +10,7 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/env"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/comment"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/content"
 	cld "github.com/ArdiSasongko/go-forum-backend/pkg/cloudinary"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
@@ -139,16 +140,17 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 	return &allContents, nil
 }
 
-func (s *contentService) GetContent(ctx context.Context, queries Queries, contentID int32) (*model.ContentResponse, error) {
+func (s *contentService) GetContent(ctx context.Context, queries Queries, contentID, offset, limit int32) (*model.ContentResponse, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
 	contentQueries := queries.ContentQueries.WithTx(tx)
+	commentQueris := queries.CommentQueries.WithTx(tx)
 
 	contentRow, err := contentQueries.GetContent(ctx, contentID)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			logrus.WithField("get content", "content didnt exist").Error("failed to get content")
-			return nil, fmt.Errorf("failed to get content : %v", err)
+			logrus.WithField("get content", sql.ErrNoRows.Error()).Error("failed to get content")
+			return nil, fmt.Errorf("failed to get content : %v", sql.ErrNoRows.Error())
 		}
 		logrus.WithField("get content", err.Error()).Error("failed to get content")
 		return nil, fmt.Errorf("failed to get content : %v", err)
@@ -191,9 +193,48 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 		}
 	}()
 
+	var contentMetrics model.ContentMetrics
+	var allComments []model.CommentsResponse
+
+	commentCount, err := commentQueris.GetCountOfComments(ctx, contentID)
+	if err != nil {
+		logrus.WithField("counting comment", err.Error()).Error("failed to counting comments")
+		return nil, fmt.Errorf("failed to counting comments : %v", err)
+	}
+
+	comments, err := commentQueris.GetCommentByContent(ctx, comment.GetCommentByContentParams{
+		ContentID: contentID,
+		Offset:    offset,
+		Limit:     limit,
+	})
+	if err != nil {
+		logrus.WithField("get comments", err.Error()).Error("failed to get comments")
+		return nil, fmt.Errorf("failed to get comments : %v", err)
+	}
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for _, comment := range comments {
+			allComments = append(allComments,
+				model.CommentsResponse{
+					Username:  comment.CreatedBy,
+					Comment:   comment.CommentBody,
+					CreatedAt: comment.CreatedAt,
+					UpdatedAt: comment.UpdatedAt,
+				},
+			)
+		}
+	}()
 	wg.Wait()
 
+	contentMetrics.Pagination = model.Pagination{
+		Limit: limit,
+	}
+	contentMetrics.CommentCount = int(commentCount)
+	contentMetrics.Comments = allComments
 	contentResponse.ContentImage = allImages
+	contentResponse.ContentMetrics = contentMetrics
 
 	return &contentResponse, nil
 }
@@ -203,7 +244,7 @@ func (s *contentService) UpdateContent(ctx context.Context, queries Queries, con
 	defer utils.Tx(tx, err)
 	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	oldContent, err := s.GetContent(ctx, queries, contentID)
+	oldContent, err := s.GetContent(ctx, queries, contentID, 1, 1)
 	if err != nil {
 		logrus.WithField("get content", err.Error()).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err)
@@ -232,7 +273,7 @@ func (s *contentService) DeleteContent(ctx context.Context, queries Queries, con
 	defer utils.Tx(tx, err)
 	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	validContent, err := s.GetContent(ctx, queries, contentID)
+	validContent, err := s.GetContent(ctx, queries, contentID, 1, 1)
 	if err != nil {
 		logrus.WithField("get content", err.Error()).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err)
@@ -248,18 +289,24 @@ func (s *contentService) DeleteContent(ctx context.Context, queries Queries, con
 		url       = env.GetEnv("CLOUDINARY_URL", "")
 	)
 
+	var wg sync.WaitGroup
+
 	for _, url := range validContent.ContentImage {
 		publicID, _ := cld.GetPublicID(url.ImageURL, "forum-content")
 		publicIDs = append(publicIDs, publicID)
 	}
 
 	for _, publicId := range publicIDs {
-		logrus.Info(publicId)
-		if err := cld.DestroyImage(ctx, url, publicId); err != nil {
-			logrus.WithField("delete image", err.Error()).Error("failed to delete image content")
-			return fmt.Errorf("failed to delete image content : %v", err)
-		}
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			if err := cld.DestroyImage(ctx, url, id); err != nil {
+				logrus.WithField("delete content", err.Error()).Error("failed to delete content")
+			}
+		}(publicId)
 	}
+	wg.Wait()
+	logrus.Info("success delete all images content")
 
 	return nil
 }

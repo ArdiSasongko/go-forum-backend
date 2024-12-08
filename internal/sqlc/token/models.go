@@ -95,6 +95,17 @@ func (ns NullTokenType) Value() (driver.Value, error) {
 	return string(ns.TokenType), nil
 }
 
+type Comment struct {
+	ID          int32
+	UserID      int32
+	ContentID   int32
+	CommentBody string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	CreatedBy   string
+	UpdatedBy   string
+}
+
 type Content struct {
 	ID             int32
 	UserID         int32
