@@ -42,7 +42,7 @@ ORDER BY c.created_at
 DESC LIMIT $1 OFFSET $2;
 
 -- name: UpdateContent :exec
-UPDATE contents SET content_title = $2, content_body = $3, content_hastags = $4, updated_by = $5 WHERE id = $1 AND user_id = $6;
+UPDATE contents SET content_title = $2, content_body = $3, content_hastags = $4, updated_by = $5, updated_at = $6 WHERE id = $1 AND user_id = $7;
 
 -- name: DeleteContent :exec
 DELETE FROM contents WHERE id = $1;

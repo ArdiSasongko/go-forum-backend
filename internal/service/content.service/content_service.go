@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ArdiSasongko/go-forum-backend/env"
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
@@ -34,8 +35,11 @@ func (s *contentService) InsertContent(ctx context.Context, queries Queries, mod
 		return fmt.Errorf("failed to to insert content : %v", err)
 	}
 
-	var publicIDs []string
-	url := env.GetEnv("CLOUDINARY_URL", "")
+	var (
+		publicIDs []string
+		url       = env.GetEnv("CLOUDINARY_URL", "")
+	)
+
 	for _, image := range model.Files {
 		imgUrl, publicID, err := cld.UploadImage(ctx, image, url, "forum-content")
 		if err != nil {
@@ -192,4 +196,70 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 	contentResponse.ContentImage = allImages
 
 	return &contentResponse, nil
+}
+
+func (s *contentService) UpdateContent(ctx context.Context, queries Queries, contentID, userID int32, req model.UpdateContent) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	defer utils.Tx(tx, err)
+	contentQueries := queries.ContentQueries.WithTx(tx)
+
+	oldContent, err := s.GetContent(ctx, queries, contentID)
+	if err != nil {
+		logrus.WithField("get content", err.Error()).Error("failed to get content")
+		return fmt.Errorf("failed to get content : %v", err)
+	}
+
+	newHastags := strings.Join(req.ContentHastags, ",")
+	oldHastags := strings.Join(oldContent.ContentHastags, ",")
+	if err := contentQueries.UpdateContent(ctx, content.UpdateContentParams{
+		ID:             contentID,
+		ContentTitle:   utils.DefaultValue[string](oldContent.ContentTitle, req.ContentTitle),
+		ContentBody:    utils.DefaultValue[string](oldContent.ContentBody, req.ContentBody),
+		ContentHastags: utils.DefaultValue[string](oldHastags, newHastags),
+		UpdatedBy:      req.UpdatedBy,
+		UpdatedAt:      time.Now().UTC(),
+		UserID:         userID,
+	}); err != nil {
+		logrus.WithField("update content", err.Error()).Error("failed to update content")
+		return fmt.Errorf("failed to update content : %v", err)
+	}
+
+	return nil
+}
+
+func (s *contentService) DeleteContent(ctx context.Context, queries Queries, contentID int32) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	defer utils.Tx(tx, err)
+	contentQueries := queries.ContentQueries.WithTx(tx)
+
+	validContent, err := s.GetContent(ctx, queries, contentID)
+	if err != nil {
+		logrus.WithField("get content", err.Error()).Error("failed to get content")
+		return fmt.Errorf("failed to get content : %v", err)
+	}
+
+	if err := contentQueries.DeleteContent(ctx, contentID); err != nil {
+		logrus.WithField("delete content", err.Error()).Error("failed to delete content")
+		return fmt.Errorf("failed to delete content : %v", err)
+	}
+
+	var (
+		publicIDs []string
+		url       = env.GetEnv("CLOUDINARY_URL", "")
+	)
+
+	for _, url := range validContent.ContentImage {
+		publicID, _ := cld.GetPublicID(url.ImageURL, "forum-content")
+		publicIDs = append(publicIDs, publicID)
+	}
+
+	for _, publicId := range publicIDs {
+		logrus.Info(publicId)
+		if err := cld.DestroyImage(ctx, url, publicId); err != nil {
+			logrus.WithField("delete image", err.Error()).Error("failed to delete image content")
+			return fmt.Errorf("failed to delete image content : %v", err)
+		}
+	}
+
+	return nil
 }
