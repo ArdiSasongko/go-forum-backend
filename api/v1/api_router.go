@@ -1,12 +1,14 @@
 package v1
 
 import (
+	"github.com/ArdiSasongko/go-forum-backend/api/types"
 	contenthandler "github.com/ArdiSasongko/go-forum-backend/internal/handler/content.handler"
 	userhandler "github.com/ArdiSasongko/go-forum-backend/internal/handler/user.handler"
 	contentservice "github.com/ArdiSasongko/go-forum-backend/internal/service/content.service"
 	userservice "github.com/ArdiSasongko/go-forum-backend/internal/service/user.service"
 	"github.com/ArdiSasongko/go-forum-backend/pkg/middleware"
 	"github.com/gofiber/fiber/v2"
+	"github.com/sirupsen/logrus"
 )
 
 type ApiRouter struct {
@@ -25,6 +27,16 @@ func (h *ApiRouter) InstallRouter(app *fiber.App) {
 	h.setupAuthRouter(app)
 	h.setupUserRouter(app)
 	h.setupContentRouter(app)
+
+	// test connection
+	app.Get("/", func(ctx *fiber.Ctx) error {
+		return types.SendResponse(ctx, fiber.StatusOK, "success", "connection ok")
+	})
+	// route not found
+	app.Use(func(ctx *fiber.Ctx) error {
+		logrus.WithField("route", ctx.Path()).Error("route not found")
+		return types.SendResponse(ctx, fiber.StatusNotFound, "NOT FOUND", "route not found")
+	})
 }
 
 func (h *ApiRouter) setupAuthRouter(app *fiber.App) {
@@ -34,6 +46,7 @@ func (h *ApiRouter) setupAuthRouter(app *fiber.App) {
 
 	authGroupV1.Post("/register", userHandler.Register)
 	authGroupV1.Post("/login", userHandler.Login)
+	authGroupV1.Delete("/logout", middleware.MiddlewareAuthValidate, userHandler.Logout)
 	authGroupV1.Put("/refresh-token", middleware.MiddlewareRefreshToken, userHandler.RefreshToken)
 	authGroupV1.Put("/validate/email", middleware.MiddlewareAuthValidate, userHandler.ValidateUser)
 	authGroupV1.Get("/validate/resend", middleware.MiddlewareAuthValidate, userHandler.ResendEmail)

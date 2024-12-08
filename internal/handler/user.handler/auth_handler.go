@@ -105,3 +105,14 @@ func (h *userHandler) RefreshToken(ctx *fiber.Ctx) error {
 
 	return types.SendResponse(ctx, fiber.StatusOK, "success get token", newToken)
 }
+
+func (h *userHandler) Logout(ctx *fiber.Ctx) error {
+	userID := ctx.Locals("user_id").(int32)
+
+	if err := h.service.Logout(ctx.Context(), queries, userID); err != nil {
+		logrus.WithField("logout", err.Error()).Error("failed to logout")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
+	}
+
+	return types.SendResponse(ctx, fiber.StatusOK, "success logout", nil)
+}

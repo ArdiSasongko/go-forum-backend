@@ -31,6 +31,7 @@ type Queries struct {
 type UserService interface {
 	CreateUser(ctx context.Context, queries Queries, req model.UserModel) error
 	LoginUser(ctx context.Context, queries Queries, req model.LoginRequest) (*model.ResponseLogin, error)
+	Logout(ctx context.Context, queries Queries, id int32) error
 	RefreshToken(ctx context.Context, queries Queries, req model.PayloadToken, token model.RefreshToken) (string, error)
 	ValidateEmail(ctx context.Context, queries Queries, payload model.ValidatePayload) error
 	ResendEmail(ctx context.Context, queries Queries, payload model.ValidatePayload) error

@@ -295,3 +295,31 @@ func (s *userService) RefreshToken(ctx context.Context, queries Queries, req mod
 
 	return newToken, nil
 }
+
+func (s *userService) Logout(ctx context.Context, queries Queries, id int32) error {
+	tx, err := s.db.BeginTx(ctx, nil)
+	defer utils.Tx(tx, err)
+	userQueries := queries.UserQueries.WithTx(tx)
+	userSessionQueries := queries.UserSessionQueries.WithTx(tx)
+
+	_, err = userQueries.GetUser(ctx, user.GetUserParams{
+		ID:       id,
+		Username: "",
+		Email:    "",
+	})
+
+	if err == sql.ErrNoRows {
+		logrus.WithField("get user", err.Error()).Error("failed to get user")
+		return fmt.Errorf("failed to get user : %v", err.Error())
+	} else if err != nil {
+		logrus.WithField("get user", err.Error()).Error("failed to get user")
+		return fmt.Errorf("failed to get user : %v", err.Error())
+	}
+
+	if err := userSessionQueries.DeleteToken(ctx, id); err != nil {
+		logrus.WithField("delete user session", err.Error()).Error("failed to delete user session")
+		return fmt.Errorf("failed to delete user session : %v", err.Error())
+	}
+
+	return nil
+}
