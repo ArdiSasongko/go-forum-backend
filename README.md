@@ -21,5 +21,9 @@ Tools yang digunakan selama pengembangan:
 - **TablePlus**: Untuk manajemen database PostgreSQL.
 
 ## Documentation
-Dokumentasi API dapat diakses melalui tautan berikut:
-[Postman Documentation](<masukkan tautan dokumentasi Postman Anda di sini>)
+- Dokumentasi API dapat diakses melalui tautan berikut:
+[Postman Documentation](https://documenter.getpostman.com/view/29238176/2sAYBd7oER)
+
+- Spesifikasi aplikasi dapat dilihat di tautan berikut:
+[App Specification](https://topaz-pea-252.notion.site/Forum-APP-Specification-14f5f290c77880eeb4f7c26e7ab9cb7a)
+
