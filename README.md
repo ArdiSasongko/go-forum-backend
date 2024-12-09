@@ -22,5 +22,4 @@ Tools yang digunakan selama pengembangan:
 
 ## Documentation
 Dokumentasi API dapat diakses melalui tautan berikut:
-[Postman Documentation](<(https://documenter.getpostman.com/view/29238176/2sAYBd7oER)>)
-
+[Postman Documentation](<masukkan tautan dokumentasi Postman Anda di sini>)
