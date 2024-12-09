@@ -25,9 +25,12 @@ func (s *userService) ResetPassword(ctx context.Context, queries Queries, req mo
 		Username: "",
 		Email:    req.Email,
 	})
-	if err != nil || err == sql.ErrNoRows {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
-		return fmt.Errorf("failed get user : %v", err)
+	if err == sql.ErrNoRows {
+		s.logger.WithError(err).Error("user didnt exists")
+		return fmt.Errorf("user didn't exist")
+	} else if err != nil {
+		s.logger.WithError(err).Error("failed to get user")
+		return fmt.Errorf("failed to get user: %v", err)
 	}
 
 	validationToken := utils.GenToken()
@@ -38,17 +41,18 @@ func (s *userService) ResetPassword(ctx context.Context, queries Queries, req mo
 		ExpiredAt: time.Now().UTC().Add(5 * time.Minute),
 	})
 	if err != nil {
-		logrus.WithField("create token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to create token")
 		return fmt.Errorf("failed to create new token :%v", err)
 	}
 
 	logrus.Info(validationToken)
 	err = utils.SendToken(req.Email, "password", int32(validationToken))
 	if err != nil {
-		logrus.WithField("send email", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to send email")
 		return fmt.Errorf("failed to send email :%v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v get reset token", user.ID))
 	return nil
 }
 
@@ -63,9 +67,12 @@ func (s *userService) ConfirmPassword(ctx context.Context, queries Queries, req 
 		Username: "",
 		Email:    req.Email,
 	})
-	if err != nil || err == sql.ErrNoRows {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
-		return fmt.Errorf("failed get user : %v", err)
+	if err == sql.ErrNoRows {
+		s.logger.WithError(err).Error("user didnt exists")
+		return fmt.Errorf("user didn't exist")
+	} else if err != nil {
+		s.logger.WithError(err).Error("failed to get user")
+		return fmt.Errorf("failed to get user: %v", err)
 	}
 
 	validToken, err := tokenQueries.GetToken(ctx, tokentable.GetTokenParams{
@@ -73,26 +80,26 @@ func (s *userService) ConfirmPassword(ctx context.Context, queries Queries, req 
 		Token:  req.Token,
 	})
 	if err != nil {
-		logrus.WithField("get validate token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get validate token")
 		return fmt.Errorf("failed get validate token : %v", err)
 	} else if err == sql.ErrNoRows {
-		logrus.WithField("get validate token", "token didnt exists please resend again").Error("token didnt exists please resend again")
+		s.logger.WithError(err).Error("token is invalid")
 		return fmt.Errorf("token didnt exists please resend again")
 	}
 
 	if validToken.ExpiredAt.Before(time.Now().UTC()) {
-		logrus.WithField("get validate token", "token has expired").Error("token has expired")
+		s.logger.WithError(err).Error("token has expired")
 		return fmt.Errorf("token has expired, please resend new token")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(validUser.Password), []byte(req.Password)); err == nil {
-		logrus.WithField("confirm password", "dont use same password").Error("dont use same password")
+		s.logger.WithError(err).Error("failed to confirm passwword")
 		return fmt.Errorf("dont use same password")
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		logrus.WithField("hash password", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to hash password")
 		return fmt.Errorf("failed to hash password : %v", err)
 	}
 
@@ -100,7 +107,7 @@ func (s *userService) ConfirmPassword(ctx context.Context, queries Queries, req 
 		Password: string(hash),
 		ID:       validUser.ID,
 	}); err != nil {
-		logrus.WithField("updated password", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to update password")
 		return fmt.Errorf("failed to updated password : %v", err)
 	}
 
@@ -108,9 +115,10 @@ func (s *userService) ConfirmPassword(ctx context.Context, queries Queries, req 
 		UserID:    validUser.ID,
 		TokenType: "password_reset",
 	}); err != nil {
-		logrus.WithField("delete token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to delete token")
 		return fmt.Errorf("failed to delete token : %v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v success update password", validUser.ID))
 	return nil
 }

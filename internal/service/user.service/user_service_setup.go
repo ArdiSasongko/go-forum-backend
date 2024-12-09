@@ -9,15 +9,18 @@ import (
 	tokentable "github.com/ArdiSasongko/go-forum-backend/internal/sqlc/token"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/user"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/usersession"
+	"github.com/sirupsen/logrus"
 )
 
 type userService struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *logrus.Logger
 }
 
-func NewUserService(db *sql.DB) *userService {
+func NewUserService(db *sql.DB, logger *logrus.Logger) *userService {
 	return &userService{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 

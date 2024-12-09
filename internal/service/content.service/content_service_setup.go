@@ -7,15 +7,18 @@ import (
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/comment"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/content"
+	"github.com/sirupsen/logrus"
 )
 
 type contentService struct {
-	db *sql.DB
+	db     *sql.DB
+	logger *logrus.Logger
 }
 
-func NewContentService(db *sql.DB) *contentService {
+func NewContentService(db *sql.DB, logger *logrus.Logger) *contentService {
 	return &contentService{
-		db: db,
+		db:     db,
+		logger: logger,
 	}
 }
 
