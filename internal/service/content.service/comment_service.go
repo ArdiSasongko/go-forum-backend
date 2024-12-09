@@ -7,6 +7,7 @@ import (
 
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/comment"
+	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/content"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
 )
 
@@ -16,7 +17,10 @@ func (s *contentService) InsertComment(ctx context.Context, queries Queries, req
 	commentQueries := queries.CommentQueries.WithTx(tx)
 	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	_, err = contentQueries.GetContent(ctx, req.ContentID)
+	_, err = contentQueries.GetContent(ctx, content.GetContentParams{
+		UserID: 0,
+		ID:     req.ContentID,
+	})
 	if err == sql.ErrNoRows {
 		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", sql.ErrNoRows.Error())

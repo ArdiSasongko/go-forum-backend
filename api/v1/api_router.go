@@ -71,11 +71,14 @@ func (h *ApiRouter) setupContentRouter(app *fiber.App) {
 
 	contentGroupV1.Post("/", middleware.MiddlewareAuthValidate, middleware.CheckValidUser, contentHandler.CreateContent)
 	contentGroupV1.Get("/", contentHandler.GetContents)
-	contentGroupV1.Get("/:content_id", contentHandler.GetContent)
+	contentGroupV1.Get("/:content_id", middleware.MiddlewareAuthValidate, contentHandler.GetContent)
 	contentGroupV1.Put("/:content_id", middleware.MiddlewareAuthValidate, middleware.CheckValidUser, contentHandler.UpdateContent)
 	contentGroupV1.Delete("/:content_id", middleware.MiddlewareAuthValidate, middleware.CheckValidUser, middleware.MiddlewareAccess, contentHandler.DeleteContent)
 	contentGroupV1.Get("/page/:page", contentHandler.GetContents)
 
 	// comment
 	contentGroupV1.Post("/:content_id/comment", middleware.MiddlewareAuthValidate, contentHandler.InsertComment)
+	contentGroupV1.Delete("/:content_id/comment", middleware.MiddlewareAuthValidate, contentHandler.DeleteComment)
+	// user activities
+	contentGroupV1.Put("/:content_id/activities", middleware.MiddlewareAuthValidate, contentHandler.UpdateUserActivitiesContent)
 }

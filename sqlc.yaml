@@ -42,3 +42,10 @@ sql:
       go:
         package: "comment"
         out: "./internal/sqlc/comment"
+  - engine: "postgresql"
+    queries: "./db/queries/useractivities/*.sql"
+    schema: "./db/migrations"
+    gen:
+      go:
+        package: "useractivities"
+        out: "./internal/sqlc/useractivities"

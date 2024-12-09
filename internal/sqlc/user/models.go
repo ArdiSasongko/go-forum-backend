@@ -153,6 +153,18 @@ type User struct {
 	UpdatedAt sql.NullTime
 }
 
+type UserActivity struct {
+	ID         int32
+	UserID     int32
+	ContentID  int32
+	Isliked    sql.NullBool
+	Isdisliked sql.NullBool
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	CreatedBy  string
+	UpdatedBy  string
+}
+
 type UserSession struct {
 	UserID              int32
 	Token               string

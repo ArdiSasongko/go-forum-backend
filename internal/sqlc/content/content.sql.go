@@ -48,6 +48,7 @@ SELECT
     c.content_title,
     c.content_body,
     STRING_AGG(i.image_url, ',') AS image_urls,
+    COALESCE (ua.isLiked, false) As is_liked,
     c.content_hastags, 
     c.created_at, 
     c.updated_at, 
@@ -55,6 +56,8 @@ SELECT
 FROM contents c 
 LEFT JOIN images_content i 
 ON c.id = i.content_id 
+LEFT JOIN user_activities ua
+ON c.id = ua.content_id AND ua.user_id = $2
 WHERE c.id = $1
 GROUP BY 
     c.id, 
@@ -63,28 +66,36 @@ GROUP BY
     c.content_hastags, 
     c.created_at, 
     c.updated_at, 
-    c.created_by
+    c.created_by,
+    ua.isLiked
 `
+
+type GetContentParams struct {
+	ID     int32
+	UserID int32
+}
 
 type GetContentRow struct {
 	ID             int32
 	ContentTitle   string
 	ContentBody    string
 	ImageUrls      []byte
+	IsLiked        bool
 	ContentHastags string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	CreatedBy      string
 }
 
-func (q *Queries) GetContent(ctx context.Context, id int32) (GetContentRow, error) {
-	row := q.db.QueryRowContext(ctx, getContent, id)
+func (q *Queries) GetContent(ctx context.Context, arg GetContentParams) (GetContentRow, error) {
+	row := q.db.QueryRowContext(ctx, getContent, arg.ID, arg.UserID)
 	var i GetContentRow
 	err := row.Scan(
 		&i.ID,
 		&i.ContentTitle,
 		&i.ContentBody,
 		&i.ImageUrls,
+		&i.IsLiked,
 		&i.ContentHastags,
 		&i.CreatedAt,
 		&i.UpdatedAt,

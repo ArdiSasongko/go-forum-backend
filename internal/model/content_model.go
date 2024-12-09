@@ -88,3 +88,16 @@ func (u CommentModel) Validate() error {
 	v := validator.New()
 	return v.Struct(u)
 }
+
+type LikedModel struct {
+	UserID    int32  `json:"user_id"`
+	ContentID int32  `json:"content_id"`
+	Username  string `json:"username"`
+	IsLike    bool   `json:"is_liked" validate:"omitempty"`
+	IsDislike bool   `json:"is_disliked" validate:"omitempty"`
+}
+
+func (u LikedModel) Validate() error {
+	v := validator.New()
+	return v.Struct(u)
+}
