@@ -32,7 +32,7 @@ func (s *contentService) InsertContent(ctx context.Context, queries Queries, mod
 		UpdatedBy:      model.Username,
 	})
 	if err != nil {
-		logrus.WithField("insert content", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to insert content")
 		return fmt.Errorf("failed to to insert content : %v", err)
 	}
 
@@ -44,7 +44,7 @@ func (s *contentService) InsertContent(ctx context.Context, queries Queries, mod
 	for _, image := range model.Files {
 		imgUrl, publicID, err := cld.UploadImage(ctx, image, url, "forum-content")
 		if err != nil {
-			logrus.WithField("upload content", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to upload content")
 			return fmt.Errorf("failed to to upload content : %v", err)
 		}
 
@@ -62,13 +62,14 @@ func (s *contentService) InsertContent(ctx context.Context, queries Queries, mod
 				ContentID: contentID,
 				ImageUrl:  imgUrl,
 			}); err != nil {
-				logrus.WithField("delete content image", err.Error()).Error(err.Error())
+				s.logger.WithError(err).Error("failed to delete content")
 				return fmt.Errorf("failed to delete content image : %v", err)
 			}
-			logrus.WithField("insert content image", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to insert image content")
 			return fmt.Errorf("failed to insert content image : %v", err)
 		}
 	}
+	s.logger.Info("success create content")
 	return nil
 }
 
@@ -83,12 +84,12 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 		Offset: int32(offset),
 	})
 	if err != nil {
-		logrus.WithField("get contents", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get content")
 		return nil, fmt.Errorf("failed to get contents : %v", err)
 	}
 
 	if len(contents) == 0 {
-		logrus.WithField("get contents", "contents didnt exists").Error("contents didnt exists")
+		s.logger.Error("contents not found")
 		return nil, fmt.Errorf("contents didnt exists")
 	}
 
@@ -129,7 +130,7 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 	}()
 
 	for err := range errsChan {
-		logrus.WithField("error", err.Error()).Error("error process content")
+		s.logger.WithError(err).Error("failed to processes image")
 		return nil, err
 	}
 
@@ -137,6 +138,7 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 		allContents = append(allContents, item)
 	}
 
+	s.logger.Info("success get all contents")
 	return &allContents, nil
 }
 
@@ -147,13 +149,12 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 	commentQueris := queries.CommentQueries.WithTx(tx)
 
 	contentRow, err := contentQueries.GetContent(ctx, contentID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			logrus.WithField("get content", sql.ErrNoRows.Error()).Error("failed to get content")
-			return nil, fmt.Errorf("failed to get content : %v", sql.ErrNoRows.Error())
-		}
-		logrus.WithField("get content", err.Error()).Error("failed to get content")
-		return nil, fmt.Errorf("failed to get content : %v", err)
+	if err == sql.ErrNoRows {
+		s.logger.WithError(err).Error("content didnt exist")
+		return nil, fmt.Errorf("failed to get content: %v", err)
+	} else if err != nil {
+		s.logger.WithError(err).Error("failed to get content")
+		return nil, fmt.Errorf("failed to get content: %v", err)
 	}
 
 	contentResponse := model.ContentResponse{
@@ -166,7 +167,6 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 		CreatedBy:      contentRow.CreatedBy,
 	}
 
-	logrus.Info(contentResponse.ContentID)
 	allImages := make([]model.ImageContent, 0, len(contentRow.ImageUrls))
 	var wg sync.WaitGroup
 	resultsChan := make(chan model.ImageContent, len(contentRow.ImageUrls))
@@ -198,7 +198,7 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 
 	commentCount, err := commentQueris.GetCountOfComments(ctx, contentID)
 	if err != nil {
-		logrus.WithField("counting comment", err.Error()).Error("failed to counting comments")
+		s.logger.WithError(err).Error("failed to counting comments")
 		return nil, fmt.Errorf("failed to counting comments : %v", err)
 	}
 
@@ -208,7 +208,7 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 		Limit:     limit,
 	})
 	if err != nil {
-		logrus.WithField("get comments", err.Error()).Error("failed to get comments")
+		s.logger.WithError(err).Error("failed to get comments")
 		return nil, fmt.Errorf("failed to get comments : %v", err)
 	}
 
@@ -236,6 +236,7 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 	contentResponse.ContentImage = allImages
 	contentResponse.ContentMetrics = contentMetrics
 
+	s.logger.Info(fmt.Sprintf("success get content : %d", contentID))
 	return &contentResponse, nil
 }
 
@@ -265,6 +266,7 @@ func (s *contentService) UpdateContent(ctx context.Context, queries Queries, con
 		return fmt.Errorf("failed to update content : %v", err)
 	}
 
+	s.logger.Info("success update content :", contentID)
 	return nil
 }
 
@@ -275,12 +277,12 @@ func (s *contentService) DeleteContent(ctx context.Context, queries Queries, con
 
 	validContent, err := s.GetContent(ctx, queries, contentID, 1, 1)
 	if err != nil {
-		logrus.WithField("get content", err.Error()).Error("failed to get content")
+		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err)
 	}
 
 	if err := contentQueries.DeleteContent(ctx, contentID); err != nil {
-		logrus.WithField("delete content", err.Error()).Error("failed to delete content")
+		s.logger.WithError(err).Error("failed to delete content")
 		return fmt.Errorf("failed to delete content : %v", err)
 	}
 
@@ -301,12 +303,12 @@ func (s *contentService) DeleteContent(ctx context.Context, queries Queries, con
 		go func(id string) {
 			defer wg.Done()
 			if err := cld.DestroyImage(ctx, url, id); err != nil {
-				logrus.WithField("delete content", err.Error()).Error("failed to delete content")
+				s.logger.WithError(err).Error("failed to delete image content")
 			}
 		}(publicId)
 	}
 	wg.Wait()
-	logrus.Info("success delete all images content")
+	s.logger.Info("success delete content :", contentID)
 
 	return nil
 }

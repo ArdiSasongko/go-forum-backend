@@ -1,2 +1,3 @@
 .env
 root.crt
+log/app.log

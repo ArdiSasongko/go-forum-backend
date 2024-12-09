@@ -33,7 +33,7 @@ func (s *userService) CreateUser(ctx context.Context, queries Queries, req model
 	if err == nil {
 		return fmt.Errorf("username already used")
 	} else if err != sql.ErrNoRows {
-		logrus.WithField("get username", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get username")
 		return fmt.Errorf("failed to get user :%v", err)
 	}
 
@@ -46,13 +46,13 @@ func (s *userService) CreateUser(ctx context.Context, queries Queries, req model
 	if err == nil {
 		return fmt.Errorf("email already used")
 	} else if err != sql.ErrNoRows {
-		logrus.WithField("get email", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user :%v", err)
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		logrus.WithField("hash password", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to hash password")
 		return fmt.Errorf("failed to generated hash password :%v", err)
 	}
 
@@ -65,7 +65,7 @@ func (s *userService) CreateUser(ctx context.Context, queries Queries, req model
 		IsValid:  sql.NullBool{Bool: false, Valid: true},
 	})
 	if err != nil {
-		logrus.WithField("create user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to create new user")
 		return fmt.Errorf("failed to create new user :%v", err)
 	}
 
@@ -73,13 +73,13 @@ func (s *userService) CreateUser(ctx context.Context, queries Queries, req model
 	url := env.GetEnv("CLOUDINARY_URL", "")
 	profile, _, err := utils.GetProfile()
 	if err != nil {
-		logrus.WithField("get profile", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get default profile image")
 		return fmt.Errorf("failed to get profile :%v", err)
 	}
 
 	imageUrl, publicID, err := cld.UploadImageByte(ctx, profile, url, "forum-profile")
 	if err != nil {
-		logrus.WithField("upload image", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to upload image profile")
 		return fmt.Errorf("failed to upload image profile :%v", err)
 	}
 
@@ -89,10 +89,10 @@ func (s *userService) CreateUser(ctx context.Context, queries Queries, req model
 		ImageUrl: imageUrl,
 	}); err != nil {
 		if err := cld.DestroyImage(ctx, url, publicID); err != nil {
-			logrus.WithField("delete image", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to delete image profile")
 			return fmt.Errorf("failed to delete image profile :%v", err)
 		}
-		logrus.WithField("insert image", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to insert image")
 		return fmt.Errorf("failed to insert image profile :%v", err)
 	}
 
@@ -105,16 +105,18 @@ func (s *userService) CreateUser(ctx context.Context, queries Queries, req model
 		ExpiredAt: time.Now().UTC().Add(5 * time.Minute),
 	})
 	if err != nil {
-		logrus.WithField("create token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to create new token")
 		return fmt.Errorf("failed to create new token :%v", err)
 	}
 
 	logrus.Info(validationToken)
 	err = utils.SendToken(req.Email, "email", int32(validationToken))
 	if err != nil {
-		logrus.WithField("send email", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to send email")
 		return fmt.Errorf("failed to send email :%v", err)
 	}
+
+	s.logger.Info("success register")
 	return nil
 }
 
@@ -130,17 +132,17 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 		Email:    req.Email,
 	})
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
+		s.logger.WithError(err).Error("user didnt exists")
 		return nil, fmt.Errorf("invalid credentials")
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
 	// check password
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
 	if err != nil {
-		logrus.WithField("compare password", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to confirm password")
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
@@ -156,13 +158,13 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 	logrus.Info(user.IsValid.Bool, user.IsValid.Valid)
 	token, err := utils.GenerateToken(ctx, claims, "token")
 	if err != nil {
-		logrus.WithField("generated token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to generate token")
 		return nil, fmt.Errorf("failed to generate token: %v", err)
 	}
 
 	refreshToken, err := utils.GenerateToken(ctx, claims, "refresh_token")
 	if err != nil {
-		logrus.WithField("generated refresh token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to generate refresh token")
 		return nil, fmt.Errorf("failed to generate refresh token: %v", err)
 	}
 
@@ -179,7 +181,7 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 	if err == sql.ErrNoRows {
 		_, err := userSessionQueries.InsertToken(ctx, usersession.InsertTokenParams(tokenModel))
 		if err != nil {
-			logrus.WithField("insert token", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to insert token")
 			return nil, fmt.Errorf("failed to insert token: %v", err)
 		}
 		return &model.ResponseLogin{
@@ -187,7 +189,7 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 			RefreshToken: tokenModel.RefreshToken,
 		}, nil
 	} else if err != nil {
-		logrus.WithField("get token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get token")
 		return nil, fmt.Errorf("failed to get token: %v", err)
 	}
 
@@ -201,7 +203,7 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 			RefreshTokenExpired: currentTime.Add(utils.MapToken["refresh_token"]),
 		})
 		if err != nil {
-			logrus.WithField("update token", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to update token")
 			return nil, fmt.Errorf("failed to update token: %v", err)
 		}
 
@@ -218,7 +220,7 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 			RefreshTokenExpired: validToken.RefreshTokenExpired,
 		})
 		if err != nil {
-			logrus.WithField("update token", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to update token")
 			return nil, fmt.Errorf("failed to update token: %v", err)
 		}
 
@@ -228,6 +230,7 @@ func (s *userService) LoginUser(ctx context.Context, queries Queries, req model.
 		}, nil
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v success login", user.ID))
 	return &model.ResponseLogin{
 		Token:        validToken.Token,
 		RefreshToken: validToken.RefreshToken,
@@ -246,25 +249,25 @@ func (s *userService) RefreshToken(ctx context.Context, queries Queries, req mod
 		Email:    "",
 	})
 	if err != nil || err == sql.ErrNoRows {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return "", fmt.Errorf("failed get user : %v", err)
 	}
 
 	// get token
 	validToken, err := userSessionQueries.GetToken(ctx, user.ID)
 	if err != nil || err == sql.ErrNoRows {
-		logrus.WithField("get token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get token")
 		return "", fmt.Errorf("failed get token : %v", err)
 	}
 
 	if validToken.RefreshToken != token.Token {
-		logrus.WithField("get token", "token is invalid").Error("token is invalid")
+		s.logger.WithError(err).Error("token is invalid")
 		return "", fmt.Errorf("token is invalid")
 	}
 
 	currentTime := time.Now().UTC()
 	if validToken.RefreshTokenExpired.Before(currentTime) {
-		logrus.WithField("get token", "token has expired").Error("token has expired")
+		s.logger.WithError(err).Error("token has expired")
 		return "", fmt.Errorf("token has expired, please login again")
 	}
 
@@ -278,7 +281,7 @@ func (s *userService) RefreshToken(ctx context.Context, queries Queries, req mod
 
 	newToken, err := utils.GenerateToken(ctx, claims, "token")
 	if err != nil {
-		logrus.WithField("create token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to create token")
 		return "", fmt.Errorf("failed create token : %v", err)
 	}
 
@@ -289,10 +292,11 @@ func (s *userService) RefreshToken(ctx context.Context, queries Queries, req mod
 		RefreshToken:        validToken.RefreshToken,
 		RefreshTokenExpired: validToken.RefreshTokenExpired,
 	}); err != nil {
-		logrus.WithField("update token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to update token")
 		return "", fmt.Errorf("failed to update token : %v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v success get refresh token", user.ID))
 	return newToken, nil
 }
 
@@ -309,17 +313,18 @@ func (s *userService) Logout(ctx context.Context, queries Queries, id int32) err
 	})
 
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", err.Error()).Error("failed to get user")
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user : %v", err.Error())
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error("failed to get user")
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user : %v", err.Error())
 	}
 
 	if err := userSessionQueries.DeleteToken(ctx, id); err != nil {
-		logrus.WithField("delete user session", err.Error()).Error("failed to delete user session")
+		s.logger.WithError(err).Error("failed to delete user session")
 		return fmt.Errorf("failed to delete user session : %v", err.Error())
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v success logout", id))
 	return nil
 }

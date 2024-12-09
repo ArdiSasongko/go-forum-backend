@@ -21,10 +21,10 @@ func (s *userService) GetProfile(ctx context.Context, queris Queries, email stri
 
 	user, err := userQueries.GetUserProfile(ctx, email)
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
+		s.logger.WithError(err).Error("user didnt exists")
 		return nil, fmt.Errorf("user didn't exist")
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return nil, fmt.Errorf("failed to get user: %v", err)
 	}
 
@@ -38,6 +38,7 @@ func (s *userService) GetProfile(ctx context.Context, queris Queries, email stri
 		Role:     string(user.Role),
 	}
 
+	s.logger.Info(fmt.Sprintf("user %d success get profile", user.ID))
 	return response, nil
 }
 
@@ -54,16 +55,16 @@ func (s *userService) UpdateProfile(ctx context.Context, queries Queries, req mo
 		Email:    req.Email,
 	})
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
+		s.logger.WithError(err).Error("user didnt exists")
 		return fmt.Errorf("invalid credentials")
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
 	validImg, err := imageUserQueries.GetImage(ctx, user.ID)
 	if err != nil {
-		logrus.WithField("get image", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get image")
 		return fmt.Errorf("failed to get image: %v", err)
 	}
 
@@ -72,7 +73,7 @@ func (s *userService) UpdateProfile(ctx context.Context, queries Queries, req mo
 	for _, file := range req.Files {
 		imgUrl, publicID, err := cld.UploadImage(ctx, file, url, "forum-profile")
 		if err != nil {
-			logrus.WithField("upload image", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to upload image")
 			return fmt.Errorf("failed to upload image profile :%v", err)
 		}
 
@@ -86,23 +87,24 @@ func (s *userService) UpdateProfile(ctx context.Context, queries Queries, req mo
 			for _, id := range publicIDs {
 				cld.DestroyImage(ctx, url, id)
 			}
-			logrus.WithField("update image", err.Error()).Error(err.Error())
+			s.logger.WithError(err).Error("failed to update image")
 			return fmt.Errorf("failed to update image profile :%v", err)
 		}
 	}
 
 	oldImage, err := cld.GetPublicID(validImg.ImageUrl, "forum-profile")
 	if err != nil {
-		logrus.WithField("get publicID", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get publicID")
 		return fmt.Errorf("failed to get publicID: %v", err)
 	}
 
 	err = cld.DestroyImage(ctx, url, oldImage)
 	if err != nil {
-		logrus.WithField("delete image", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to delete image")
 		return fmt.Errorf("failed to delete image: %v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %d success update", user.ID))
 	return nil
 }
 
@@ -118,10 +120,10 @@ func (s *userService) UpdateUser(ctx context.Context, queries Queries, req model
 		Email:    email,
 	})
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
-		return fmt.Errorf("email didnt exists")
+		s.logger.WithError(err).Error("user didnt exists")
+		return fmt.Errorf("invalid credentials")
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
@@ -130,9 +132,10 @@ func (s *userService) UpdateUser(ctx context.Context, queries Queries, req model
 		Username: utils.DefaultValue[string](validUser.Username, req.Username),
 		ID:       validUser.ID,
 	}); err != nil {
-		logrus.WithField("update user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to update user")
 		return fmt.Errorf("failed to update user : %v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %d success update", validUser.ID))
 	return nil
 }

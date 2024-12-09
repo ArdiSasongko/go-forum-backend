@@ -27,10 +27,10 @@ func (s *userService) ValidateEmail(ctx context.Context, queries Queries, payloa
 		Email:    "",
 	})
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
-		return fmt.Errorf("invalid credentials")
+		s.logger.WithError(err).Error("user didnt exists")
+		return fmt.Errorf("user didn't exist")
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
@@ -38,21 +38,21 @@ func (s *userService) ValidateEmail(ctx context.Context, queries Queries, payloa
 		UserID: user.ID,
 		Token:  payload.Token,
 	})
-	if err != nil {
-		logrus.WithField("get validate token", err.Error()).Error(err.Error())
-		return fmt.Errorf("failed get validate token : %v", err)
-	} else if err == sql.ErrNoRows {
-		logrus.WithField("get validate token", "token didnt exists please resend again").Error("token didnt exists please resend again")
-		return fmt.Errorf("token didnt exists please resend again")
+	if err == sql.ErrNoRows {
+		s.logger.WithError(err).Error("user didnt exists")
+		return fmt.Errorf("user didn't exist")
+	} else if err != nil {
+		s.logger.WithError(err).Error("failed to get user")
+		return fmt.Errorf("failed to get user: %v", err)
 	}
 
 	if validToken.ExpiredAt.Before(time.Now().UTC()) {
-		logrus.WithField("get validate token", "token has expired").Error("token has expired")
+		s.logger.WithError(err).Error("token has expired")
 		return fmt.Errorf("token has expired, please resend new token")
 	}
 
 	if err := userQueries.ValidateUser(ctx, user.ID); err != nil {
-		logrus.WithField("validate user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to validate user")
 		return fmt.Errorf("failed to validate user : %v", err)
 	}
 
@@ -60,10 +60,11 @@ func (s *userService) ValidateEmail(ctx context.Context, queries Queries, payloa
 		UserID:    user.ID,
 		TokenType: "email",
 	}); err != nil {
-		logrus.WithField("delete token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to delete token")
 		return fmt.Errorf("failed to delete token : %v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v validation email", user.ID))
 	return nil
 }
 
@@ -80,10 +81,10 @@ func (s *userService) ResendEmail(ctx context.Context, queries Queries, payload 
 		Email:    "",
 	})
 	if err == sql.ErrNoRows {
-		logrus.WithField("get user", "user didn't exist").Error("user didn't exist")
-		return fmt.Errorf("invalid credentials")
+		s.logger.WithError(err).Error("user didnt exists")
+		return fmt.Errorf("user didn't exist")
 	} else if err != nil {
-		logrus.WithField("get user", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to get user")
 		return fmt.Errorf("failed to get user: %v", err)
 	}
 
@@ -94,16 +95,17 @@ func (s *userService) ResendEmail(ctx context.Context, queries Queries, payload 
 		ExpiredAt: time.Now().UTC().Add(5 * time.Minute),
 	})
 	if err != nil {
-		logrus.WithField("update token", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to update token")
 		return fmt.Errorf("failed to create new token :%v", err)
 	}
 
 	logrus.Info(validationToken)
 	err = utils.SendToken(user.Email, "resend_email", int32(validationToken))
 	if err != nil {
-		logrus.WithField("send email", err.Error()).Error(err.Error())
+		s.logger.WithError(err).Error("failed to resend email")
 		return fmt.Errorf("failed to send email :%v", err)
 	}
 
+	s.logger.Info(fmt.Sprintf("user %v success get new token", user.ID))
 	return nil
 }

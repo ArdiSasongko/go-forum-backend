@@ -8,7 +8,6 @@ import (
 	"github.com/ArdiSasongko/go-forum-backend/internal/model"
 	"github.com/ArdiSasongko/go-forum-backend/internal/sqlc/comment"
 	"github.com/ArdiSasongko/go-forum-backend/utils"
-	"github.com/sirupsen/logrus"
 )
 
 func (s *contentService) InsertComment(ctx context.Context, queries Queries, req model.CommentModel) error {
@@ -19,10 +18,10 @@ func (s *contentService) InsertComment(ctx context.Context, queries Queries, req
 
 	_, err = contentQueries.GetContent(ctx, req.ContentID)
 	if err == sql.ErrNoRows {
-		logrus.WithField("get content", sql.ErrNoRows.Error()).Error("failed to get content")
+		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", sql.ErrNoRows.Error())
 	} else if err != nil {
-		logrus.WithField("get content", err.Error()).Error("failed to get content")
+		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err.Error())
 	}
 
@@ -33,10 +32,11 @@ func (s *contentService) InsertComment(ctx context.Context, queries Queries, req
 		CreatedBy:   req.Username,
 		UpdatedBy:   req.Username,
 	}); err != nil {
-		logrus.WithField("insert comment", err.Error()).Error("failed to insert comment")
+		s.logger.WithError(err).Error("failed to insert comment")
 		return fmt.Errorf("failed to insert comment : %v", err.Error())
 	}
 
+	s.logger.Info(fmt.Sprintf("success insert comment to contentID : %d", req.ContentID))
 	return nil
 }
 
@@ -47,17 +47,18 @@ func (s *contentService) DeleteComment(ctx context.Context, queries Queries, use
 
 	_, err = commentQueries.GetCommentByID(ctx, contentID)
 	if err == sql.ErrNoRows {
-		logrus.WithField("get content", sql.ErrNoRows.Error()).Error("failed to get content")
+		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", sql.ErrNoRows.Error())
 	} else if err != nil {
-		logrus.WithField("get content", err.Error()).Error("failed to get content")
+		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err.Error())
 	}
 
 	if err := commentQueries.DeleteCommentByUser(ctx, userID); err != nil {
-		logrus.WithField("delete comment", err.Error()).Error("failed to delete comment")
+		s.logger.WithError(err).Error("failed to delete comment")
 		return fmt.Errorf("failed to delete comment : %v", err.Error())
 	}
 
+	s.logger.Info(fmt.Sprintf("success delete comment to contentID : %d", contentID))
 	return nil
 }

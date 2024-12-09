@@ -4,13 +4,14 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/sirupsen/logrus"
+	"github.com/ArdiSasongko/go-forum-backend/pkg/log"
 )
 
 func InitDB(source string) (*sql.DB, error) {
+	logger := log.InitLogger()
 	db, err := sql.Open("postgres", source)
 	if err != nil {
-		logrus.WithField("connect database", err.Error()).Fatal(err.Error())
+		logger.WithError(err).Fatal("failed connect database")
 		return nil, err
 	}
 
@@ -19,8 +20,9 @@ func InitDB(source string) (*sql.DB, error) {
 }
 
 func initStorage(db *sql.DB) error {
+	logger := log.InitLogger()
 	if err := db.Ping(); err != nil {
-		logrus.WithField("connect database", err.Error()).Fatal(err.Error())
+		logger.WithError(err).Fatal("failed ping database")
 		return err
 	}
 
@@ -29,6 +31,6 @@ func initStorage(db *sql.DB) error {
 	db.SetConnMaxIdleTime(10 * time.Minute)
 	db.SetConnMaxLifetime(60 * time.Minute)
 
-	logrus.WithField("connect database", "success connected").Info("success connected database")
+	logger.Info("success connected database")
 	return nil
 }
