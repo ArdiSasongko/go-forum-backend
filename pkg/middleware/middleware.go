@@ -96,6 +96,7 @@ func MiddlewareRefreshToken(ctx *fiber.Ctx) error {
 
 func MiddlewareAccess(ctx *fiber.Ctx) error {
 	username := ctx.Locals("username").(string)
+	userID := ctx.Locals("user_id").(int32)
 	role := ctx.Locals("role").(string)
 	contentID, _ := ctx.ParamsInt("content_id")
 
@@ -107,7 +108,10 @@ func MiddlewareAccess(ctx *fiber.Ctx) error {
 	tx, err := db.BeginTx(ctx.Context(), nil)
 	defer utils.Tx(tx, err)
 
-	validContent, _ := content.New(db).WithTx(tx).GetContent(ctx.Context(), int32(contentID))
+	validContent, _ := content.New(db).WithTx(tx).GetContent(ctx.Context(), content.GetContentParams{
+		UserID: userID,
+		ID:     int32(contentID),
+	})
 	logrus.WithFields(logrus.Fields{
 		"username":       username,
 		"valid_username": validContent.CreatedBy,

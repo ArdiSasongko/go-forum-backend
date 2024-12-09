@@ -76,10 +76,11 @@ func (h *contentHandler) GetContents(ctx *fiber.Ctx) error {
 
 func (h *contentHandler) GetContent(ctx *fiber.Ctx) error {
 	contentID, _ := ctx.ParamsInt("content_id")
+	userID := ctx.Locals("user_id").(int32)
 	page := 1
 	limit := 10
 	offset := (page - 1) * limit
-	content, err := h.service.GetContent(ctx.Context(), queries, int32(contentID), int32(offset), int32(limit))
+	content, err := h.service.GetContent(ctx.Context(), queries, int32(contentID), userID, int32(offset), int32(limit))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			logrus.WithField("get contents", "BAD REQUEST").Error("failed to get content")

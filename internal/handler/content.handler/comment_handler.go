@@ -43,3 +43,15 @@ func (h *contentHandler) InsertComment(ctx *fiber.Ctx) error {
 
 	return types.SendResponse(ctx, fiber.StatusCreated, "success insert comment", nil)
 }
+
+func (h *contentHandler) DeleteComment(ctx *fiber.Ctx) error {
+	contentID, _ := ctx.ParamsInt("content_id")
+	user_id := ctx.Locals("user_id").(int32)
+
+	if err := h.service.DeleteComment(ctx.Context(), queries, user_id, int32(contentID)); err != nil {
+		logrus.WithField("delete comment", err.Error()).Error("failed to failed comment")
+		return types.SendResponse(ctx, fiber.StatusBadRequest, "BAD REQUEST", err.Error())
+	}
+
+	return types.SendResponse(ctx, fiber.StatusOK, "success delete comment", nil)
+}

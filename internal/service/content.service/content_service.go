@@ -142,13 +142,17 @@ func (s *contentService) GetContents(ctx context.Context, queries Queries, limit
 	return &allContents, nil
 }
 
-func (s *contentService) GetContent(ctx context.Context, queries Queries, contentID, offset, limit int32) (*model.ContentResponse, error) {
+func (s *contentService) GetContent(ctx context.Context, queries Queries, contentID, userID, offset, limit int32) (*model.ContentResponse, error) {
 	tx, err := s.db.BeginTx(ctx, nil)
 	defer utils.Tx(tx, err)
 	contentQueries := queries.ContentQueries.WithTx(tx)
 	commentQueris := queries.CommentQueries.WithTx(tx)
+	userActivitiesQueries := queries.UserActivitiesQueries.WithTx(tx)
 
-	contentRow, err := contentQueries.GetContent(ctx, contentID)
+	contentRow, err := contentQueries.GetContent(ctx, content.GetContentParams{
+		UserID: userID,
+		ID:     contentID,
+	})
 	if err == sql.ErrNoRows {
 		s.logger.WithError(err).Error("content didnt exist")
 		return nil, fmt.Errorf("failed to get content: %v", err)
@@ -202,6 +206,18 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 		return nil, fmt.Errorf("failed to counting comments : %v", err)
 	}
 
+	likedCount, err := userActivitiesQueries.GetContentLikes(ctx, contentID)
+	if err != nil {
+		s.logger.WithError(err).Error("failed to counting likes")
+		return nil, fmt.Errorf("failed to counting likes : %v", err)
+	}
+
+	dislikedCount, err := userActivitiesQueries.GetContentDislikes(ctx, contentID)
+	if err != nil {
+		s.logger.WithError(err).Error("failed to counting dislike")
+		return nil, fmt.Errorf("failed to counting dislike : %v", err)
+	}
+
 	comments, err := commentQueris.GetCommentByContent(ctx, comment.GetCommentByContentParams{
 		ContentID: contentID,
 		Offset:    offset,
@@ -231,6 +247,10 @@ func (s *contentService) GetContent(ctx context.Context, queries Queries, conten
 	contentMetrics.Pagination = model.Pagination{
 		Limit: limit,
 	}
+
+	contentMetrics.IsLike = contentRow.IsLiked
+	contentMetrics.LikeCount = int(likedCount)
+	contentMetrics.DislikeCount = int(dislikedCount)
 	contentMetrics.CommentCount = int(commentCount)
 	contentMetrics.Comments = allComments
 	contentResponse.ContentImage = allImages
@@ -245,7 +265,7 @@ func (s *contentService) UpdateContent(ctx context.Context, queries Queries, con
 	defer utils.Tx(tx, err)
 	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	oldContent, err := s.GetContent(ctx, queries, contentID, 1, 1)
+	oldContent, err := s.GetContent(ctx, queries, contentID, userID, 1, 1)
 	if err != nil {
 		logrus.WithField("get content", err.Error()).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err)
@@ -275,7 +295,7 @@ func (s *contentService) DeleteContent(ctx context.Context, queries Queries, con
 	defer utils.Tx(tx, err)
 	contentQueries := queries.ContentQueries.WithTx(tx)
 
-	validContent, err := s.GetContent(ctx, queries, contentID, 1, 1)
+	validContent, err := s.GetContent(ctx, queries, contentID, 0, 1, 1)
 	if err != nil {
 		s.logger.WithError(err).Error("failed to get content")
 		return fmt.Errorf("failed to get content : %v", err)

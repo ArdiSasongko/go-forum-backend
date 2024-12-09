@@ -10,6 +10,7 @@ SELECT
     c.content_title,
     c.content_body,
     STRING_AGG(i.image_url, ',') AS image_urls,
+    COALESCE (ua.isLiked, false) As is_liked,
     c.content_hastags, 
     c.created_at, 
     c.updated_at, 
@@ -17,6 +18,8 @@ SELECT
 FROM contents c 
 LEFT JOIN images_content i 
 ON c.id = i.content_id 
+LEFT JOIN user_activities ua
+ON c.id = ua.content_id AND ua.user_id = $2
 WHERE c.id = $1
 GROUP BY 
     c.id, 
@@ -25,7 +28,8 @@ GROUP BY
     c.content_hastags, 
     c.created_at, 
     c.updated_at, 
-    c.created_by;;
+    c.created_by,
+    ua.isLiked;
 
 -- name: GetContents :many
 SELECT 
